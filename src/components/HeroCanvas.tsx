@@ -1,7 +1,7 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 
-// ─── Noise helper (simplex-like) ───
-const permutation = new Uint8Array(512);
+// ─── Noise ───
+const perm = new Uint8Array(512);
 (() => {
   const p = new Uint8Array(256);
   for (let i = 0; i < 256; i++) p[i] = i;
@@ -9,142 +9,58 @@ const permutation = new Uint8Array(512);
     const j = Math.floor(Math.random() * (i + 1));
     [p[i], p[j]] = [p[j], p[i]];
   }
-  for (let i = 0; i < 512; i++) permutation[i] = p[i & 255];
+  for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
 })();
-
 function fade(t: number) { return t * t * t * (t * (t * 6 - 15) + 10); }
 function lerp(a: number, b: number, t: number) { return a + t * (b - a); }
 function grad(hash: number, x: number, y: number) {
   const h = hash & 3;
-  const u = h < 2 ? x : y;
-  const v = h < 2 ? y : x;
-  return ((h & 1) ? -u : u) + ((h & 2) ? -v : v);
+  return ((h & 1) ? -(h < 2 ? x : y) : (h < 2 ? x : y)) + ((h & 2) ? -(h < 2 ? y : x) : (h < 2 ? y : x));
 }
 function perlin(x: number, y: number) {
   const xi = Math.floor(x) & 255, yi = Math.floor(y) & 255;
   const xf = x - Math.floor(x), yf = y - Math.floor(y);
   const u = fade(xf), v = fade(yf);
-  const aa = permutation[permutation[xi] + yi];
-  const ab = permutation[permutation[xi] + yi + 1];
-  const ba = permutation[permutation[xi + 1] + yi];
-  const bb = permutation[permutation[xi + 1] + yi + 1];
   return lerp(
-    lerp(grad(aa, xf, yf), grad(ba, xf - 1, yf), u),
-    lerp(grad(ab, xf, yf - 1), grad(bb, xf - 1, yf - 1), u),
+    lerp(grad(perm[perm[xi] + yi], xf, yf), grad(perm[perm[xi + 1] + yi], xf - 1, yf), u),
+    lerp(grad(perm[perm[xi] + yi + 1], xf, yf - 1), grad(perm[perm[xi + 1] + yi + 1], xf - 1, yf - 1), u),
     v
   );
 }
-function fbm(x: number, y: number, octaves = 4) {
-  let val = 0, amp = 0.5, freq = 1;
-  for (let i = 0; i < octaves; i++) {
-    val += perlin(x * freq, y * freq) * amp;
-    amp *= 0.5;
-    freq *= 2;
-  }
-  return val;
+function fbm(x: number, y: number, oct = 4) {
+  let v = 0, a = 0.5, f = 1;
+  for (let i = 0; i < oct; i++) { v += perlin(x * f, y * f) * a; a *= 0.5; f *= 2; }
+  return v;
 }
 
 // ─── Types ───
-interface CrackSegment {
-  points: { x: number; y: number }[];
-  width: number;
-  hue: number;
-  opacity: number;
-  growing: boolean;
-  angle: number;
-  speed: number;
-  maxLength: number;
-  length: number;
+interface Fragment {
+  originalVerts: { x: number; y: number }[];
+  centroid: { x: number; y: number };
   depth: number;
-  branches: CrackSegment[];
-  birthTime: number;
-  openWidth: number; // how wide the crack "opens" to reveal energy
-  targetOpenWidth: number;
+  offsetX: number;
+  offsetY: number;
+  rotation: number;
+  ring: number;
 }
 
-interface Spark {
+interface Star {
   x: number;
   y: number;
-  vx: number;
-  vy: number;
-  life: number;
-  maxLife: number;
   size: number;
+  brightness: number;
+  twinkleSpeed: number;
+  twinklePhase: number;
   hue: number;
-}
-
-interface ImpactFlash {
-  x: number;
-  y: number;
-  radius: number;
-  opacity: number;
 }
 
 const HeroCanvas = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const energyCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const mouseRef = useRef({ x: -1000, y: -1000, moving: false, lastMove: 0 });
-  const cracksRef = useRef<CrackSegment[]>([]);
-  const sparksRef = useRef<Spark[]>([]);
-  const flashesRef = useRef<ImpactFlash[]>([]);
-  const timeRef = useRef(0);
-  const rafRef = useRef<number>(0);
-  const scrollRef = useRef(0);
-
-  const createCrack = useCallback(
-    (x: number, y: number, angle: number, depth: number, parentWidth = 3): CrackSegment => {
-      const maxLen = depth === 0
-        ? 100 + Math.random() * 160
-        : depth === 1
-          ? 50 + Math.random() * 80
-          : 20 + Math.random() * 40;
-      return {
-        points: [{ x, y }],
-        width: parentWidth * (depth === 0 ? 1 : depth === 1 ? 0.6 : 0.3),
-        hue: Math.random() > 0.35 ? 271 : 320,
-        opacity: 1,
-        growing: true,
-        angle: angle + (Math.random() - 0.5) * 0.3,
-        speed: depth === 0 ? 5 + Math.random() * 4 : 3 + Math.random() * 3,
-        maxLength: maxLen,
-        length: 0,
-        depth,
-        branches: [],
-        birthTime: timeRef.current,
-        openWidth: 0,
-        targetOpenWidth: depth === 0 ? 6 + Math.random() * 10 : depth === 1 ? 3 + Math.random() * 5 : 1 + Math.random() * 2,
-      };
-    },
-    []
-  );
-
-  const spawnCracksAt = useCallback(
-    (x: number, y: number) => {
-      const count = 4 + Math.floor(Math.random() * 4);
-      const baseAngle = Math.random() * Math.PI * 2;
-      for (let i = 0; i < count; i++) {
-        const angle = baseAngle + (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.6;
-        cracksRef.current.push(createCrack(x, y, angle, 0));
-      }
-      // Impact flash
-      flashesRef.current.push({ x, y, radius: 5, opacity: 0.8 });
-      // Impact sparks
-      for (let i = 0; i < 12; i++) {
-        const a = Math.random() * Math.PI * 2;
-        const spd = 2 + Math.random() * 5;
-        sparksRef.current.push({
-          x, y,
-          vx: Math.cos(a) * spd,
-          vy: Math.sin(a) * spd,
-          life: 0,
-          maxLife: 30 + Math.random() * 40,
-          size: 1 + Math.random() * 2,
-          hue: Math.random() > 0.5 ? 271 : 320,
-        });
-      }
-    },
-    [createCrack]
-  );
+  const mouseRef = useRef({ x: 0.5, y: 0.5 }); // normalized 0-1
+  const fragmentsRef = useRef<Fragment[]>([]);
+  const starsRef = useRef<Star[]>([]);
+  const startTimeRef = useRef(0);
+  const rafRef = useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -152,362 +68,409 @@ const HeroCanvas = () => {
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
-    // Energy field offscreen canvas
-    const energyCanvas = document.createElement("canvas");
-    energyCanvasRef.current = energyCanvas;
-    const ectx = energyCanvas.getContext("2d");
-    if (!ectx) return;
+    let W = window.innerWidth;
+    let H = window.innerHeight;
 
     const resize = () => {
       const dpr = window.devicePixelRatio || 1;
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      canvas.style.width = w + "px";
-      canvas.style.height = h + "px";
+      W = window.innerWidth;
+      H = window.innerHeight;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      canvas.style.width = W + "px";
+      canvas.style.height = H + "px";
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      // Energy canvas at lower res for performance
-      energyCanvas.width = Math.floor(w / 2);
-      energyCanvas.height = Math.floor(h / 2);
-    };
-    resize();
-    window.addEventListener("resize", resize);
-
-    const W = () => window.innerWidth;
-    const H = () => window.innerHeight;
-
-    let spawnAccum = 0;
-
-    const onMouseMove = (e: MouseEvent) => {
-      const prev = { x: mouseRef.current.x, y: mouseRef.current.y };
-      mouseRef.current.x = e.clientX;
-      mouseRef.current.y = e.clientY;
-      mouseRef.current.moving = true;
-      mouseRef.current.lastMove = performance.now();
-
-      const dx = e.clientX - prev.x;
-      const dy = e.clientY - prev.y;
-      const speed = Math.sqrt(dx * dx + dy * dy);
-      spawnAccum += speed;
-
-      const threshold = 35;
-      while (spawnAccum >= threshold) {
-        spawnAccum -= threshold;
-        const t = Math.random();
-        const sx = prev.x + dx * t + (Math.random() - 0.5) * 6;
-        const sy = prev.y + dy * t + (Math.random() - 0.5) * 6;
-        spawnCracksAt(sx, sy);
-      }
+      generateFragments();
+      generateStars();
     };
 
-    const onTouchMove = (e: TouchEvent) => {
-      const touch = e.touches[0];
-      if (touch) onMouseMove({ clientX: touch.clientX, clientY: touch.clientY } as MouseEvent);
-    };
+    // ─── Generate radial shatter pattern ───
+    const generateFragments = () => {
+      const cx = W / 2;
+      const cy = H / 2;
+      const maxRadius = Math.sqrt(cx * cx + cy * cy) * 1.3;
+      const SPOKES = 18;
+      const RINGS = 10;
+      const fragments: Fragment[] = [];
 
-    const onScroll = () => {
-      scrollRef.current = window.scrollY;
-    };
+      // Generate vertices grid: [ring][spoke]
+      const verts: { x: number; y: number }[][] = [];
 
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("touchmove", onTouchMove, { passive: true });
-    window.addEventListener("scroll", onScroll, { passive: true });
+      // Center point
+      verts[0] = [{ x: cx, y: cy }];
 
-    // ─── Render energy field to offscreen canvas ───
-    const renderEnergyField = (t: number) => {
-      const ew = energyCanvas.width;
-      const eh = energyCanvas.height;
-      const imageData = ectx.createImageData(ew, eh);
-      const data = imageData.data;
-
-      const scale = 0.006;
-      const tSlow = t * 0.4;
-
-      for (let y = 0; y < eh; y++) {
-        for (let x = 0; x < ew; x++) {
-          const n1 = fbm(x * scale + tSlow, y * scale + tSlow * 0.7, 3);
-          const n2 = fbm(x * scale * 1.5 - tSlow * 0.5, y * scale * 1.3 + tSlow * 0.3, 3);
-          const n3 = fbm(x * scale * 0.8 + tSlow * 0.2, y * scale * 0.8 - tSlow * 0.4, 2);
-          
-          const swirl = Math.sin(n1 * 4 + t * 0.3) * 0.5 + 0.5;
-          const intensity = Math.max(0, (n1 + n2 * 0.6 + n3 * 0.3) * 0.8 + 0.3);
-          
-          // Violet: #7B2FFF → rgb(123, 47, 255)
-          // Magenta: #C8007A → rgb(200, 0, 122)
-          const blend = swirl;
-          const r = Math.floor(lerp(200, 123, blend) * intensity);
-          const g = Math.floor(lerp(0, 47, blend) * intensity);
-          const b = Math.floor(lerp(122, 255, blend) * intensity);
-
-          // Add bright highlights
-          const highlight = Math.max(0, n1 * 2 - 0.5) * 0.6;
-          
-          const idx = (y * ew + x) * 4;
-          data[idx] = Math.min(255, r + highlight * 200);
-          data[idx + 1] = Math.min(255, g + highlight * 100);
-          data[idx + 2] = Math.min(255, b + highlight * 150);
-          data[idx + 3] = 255;
+      for (let r = 1; r <= RINGS; r++) {
+        verts[r] = [];
+        const baseRadius = (r / RINGS) * maxRadius;
+        // Inner rings: smaller, more dense. Outer: larger
+        const radiusJitter = r <= 2 ? 0.15 : r <= 5 ? 0.2 : 0.1;
+        for (let s = 0; s < SPOKES; s++) {
+          const baseAngle = (s / SPOKES) * Math.PI * 2;
+          const radius = baseRadius * (1 + (Math.random() - 0.5) * radiusJitter);
+          const angleJitter = (Math.random() - 0.5) * (Math.PI * 2 / SPOKES) * 0.35;
+          const angle = baseAngle + angleJitter;
+          verts[r][s] = {
+            x: cx + Math.cos(angle) * radius,
+            y: cy + Math.sin(angle) * radius,
+          };
         }
       }
-      ectx.putImageData(imageData, 0, 0);
-    };
 
-    // ─── Grow a crack ───
-    const growCrack = (c: CrackSegment) => {
-      if (!c.growing) return;
-      c.angle += (Math.random() - 0.5) * 0.2;
-      // Jagged: occasional sharp turns
-      if (Math.random() < 0.08) c.angle += (Math.random() - 0.5) * 1.0;
-      const last = c.points[c.points.length - 1];
-      const nx = last.x + Math.cos(c.angle) * c.speed;
-      const ny = last.y + Math.sin(c.angle) * c.speed;
-      c.points.push({ x: nx, y: ny });
-      c.length += c.speed;
-
-      // Spawn sparks along growing tip
-      if (Math.random() < 0.3) {
-        sparksRef.current.push({
-          x: nx + (Math.random() - 0.5) * 4,
-          y: ny + (Math.random() - 0.5) * 4,
-          vx: (Math.random() - 0.5) * 3,
-          vy: (Math.random() - 0.5) * 3,
-          life: 0,
-          maxLife: 20 + Math.random() * 25,
-          size: 0.5 + Math.random() * 1.5,
-          hue: c.hue,
+      // Inner triangles (center to ring 1)
+      for (let s = 0; s < SPOKES; s++) {
+        const ns = (s + 1) % SPOKES;
+        const v = [verts[0][0], verts[1][s], verts[1][ns]];
+        const centX = (v[0].x + v[1].x + v[2].x) / 3;
+        const centY = (v[0].y + v[1].y + v[2].y) / 3;
+        const dist = Math.sqrt((centX - cx) ** 2 + (centY - cy) ** 2);
+        fragments.push({
+          originalVerts: v,
+          centroid: { x: centX, y: centY },
+          depth: 1 - dist / maxRadius,
+          offsetX: 0, offsetY: 0, rotation: 0,
+          ring: 1,
         });
       }
 
-      // Branch
-      if (c.depth < 2 && c.length > 25 && Math.random() < 0.04) {
-        const ba = c.angle + (Math.random() > 0.5 ? 1 : -1) * (0.5 + Math.random() * 0.7);
-        c.branches.push(createCrack(nx, ny, ba, c.depth + 1, c.width));
+      // Quad fragments for outer rings
+      for (let r = 1; r < RINGS; r++) {
+        for (let s = 0; s < SPOKES; s++) {
+          const ns = (s + 1) % SPOKES;
+          const v = [verts[r][s], verts[r][ns], verts[r + 1][ns], verts[r + 1][s]];
+          const centX = (v[0].x + v[1].x + v[2].x + v[3].x) / 4;
+          const centY = (v[0].y + v[1].y + v[2].y + v[3].y) / 4;
+          const dist = Math.sqrt((centX - cx) ** 2 + (centY - cy) ** 2);
+          fragments.push({
+            originalVerts: v,
+            centroid: { x: centX, y: centY },
+            depth: Math.max(0, 1 - dist / maxRadius),
+            offsetX: 0, offsetY: 0, rotation: 0,
+            ring: r + 1,
+          });
+        }
       }
 
-      if (c.length >= c.maxLength) c.growing = false;
-      for (const b of c.branches) growCrack(b);
+      fragmentsRef.current = fragments;
     };
 
-    // ─── Draw crack with energy reveal ───
-    const drawCrackEnergy = (c: CrackSegment, ctx: CanvasRenderingContext2D, ww: number, hh: number) => {
-      if (c.points.length < 2 || c.opacity < 0.01) return;
+    // ─── Generate stars ───
+    const generateStars = () => {
+      const stars: Star[] = [];
+      const count = Math.floor(W * H / 2000);
+      for (let i = 0; i < count; i++) {
+        stars.push({
+          x: Math.random() * W,
+          y: Math.random() * H,
+          size: Math.random() < 0.1 ? 1.5 + Math.random() * 1.5 : 0.3 + Math.random() * 1,
+          brightness: 0.3 + Math.random() * 0.7,
+          twinkleSpeed: 0.5 + Math.random() * 2,
+          twinklePhase: Math.random() * Math.PI * 2,
+          hue: Math.random() > 0.7 ? 270 + Math.random() * 60 : 0,
+        });
+      }
+      starsRef.current = stars;
+    };
 
-      // Animate open width
-      if (c.opacity > 0.3) {
-        c.openWidth += (c.targetOpenWidth - c.openWidth) * 0.08;
-      } else {
-        c.openWidth *= 0.95;
+    resize();
+    window.addEventListener("resize", resize);
+
+    const onMouseMove = (e: MouseEvent) => {
+      mouseRef.current.x = e.clientX / W;
+      mouseRef.current.y = e.clientY / H;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (t) { mouseRef.current.x = t.clientX / W; mouseRef.current.y = t.clientY / H; }
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+
+    startTimeRef.current = performance.now();
+
+    // ─── Offscreen energy canvas ───
+    const energyCanvas = document.createElement("canvas");
+    const ew = Math.floor(W / 3);
+    const eh = Math.floor(H / 3);
+    energyCanvas.width = ew;
+    energyCanvas.height = eh;
+    const ectx = energyCanvas.getContext("2d")!;
+
+    let energyFrame = 0;
+
+    const renderEnergy = (t: number) => {
+      const imgData = ectx.createImageData(ew, eh);
+      const d = imgData.data;
+      const scale = 0.005;
+      const ts = t * 0.3;
+      for (let y = 0; y < eh; y++) {
+        for (let x = 0; x < ew; x++) {
+          const n1 = fbm(x * scale + ts, y * scale + ts * 0.7, 3);
+          const n2 = fbm(x * scale * 1.3 - ts * 0.4, y * scale * 1.1 + ts * 0.3, 3);
+          const swirl = Math.sin(n1 * 5 + t * 0.2) * 0.5 + 0.5;
+          const intensity = Math.max(0, (n1 + n2 * 0.5) * 0.7 + 0.35);
+          // Violet #7B2FFF (123,47,255) ↔ Magenta #C8007A (200,0,122)
+          const r = lerp(200, 123, swirl) * intensity;
+          const g = lerp(0, 47, swirl) * intensity;
+          const b = lerp(122, 255, swirl) * intensity;
+          const bright = Math.max(0, n1 * 3 - 0.8) * 0.5;
+          const idx = (y * ew + x) * 4;
+          d[idx] = Math.min(255, r + bright * 220);
+          d[idx + 1] = Math.min(255, g + bright * 120);
+          d[idx + 2] = Math.min(255, b + bright * 180);
+          d[idx + 3] = 255;
+        }
+      }
+      ectx.putImageData(imgData, 0, 0);
+    };
+    renderEnergy(0);
+
+    // ─── Animation ───
+    const drawFrame = () => {
+      const now = performance.now();
+      const elapsed = (now - startTimeRef.current) / 1000; // seconds since load
+      const t = elapsed;
+
+      // Crack animation timeline
+      // 0-0.8s: black (suspense)
+      // 0.8-2.5s: cracks form, fragments separate
+      // 2.5+: stable with parallax
+      const crackStart = 0.8;
+      const crackEnd = 2.8;
+      const crackProgress = Math.max(0, Math.min(1, (t - crackStart) / (crackEnd - crackStart)));
+      // Easing: ease-out cubic
+      const crackEase = 1 - Math.pow(1 - crackProgress, 3);
+
+      // Mouse parallax (centered at 0.5, 0.5)
+      const mx = (mouseRef.current.x - 0.5) * 2; // -1 to 1
+      const my = (mouseRef.current.y - 0.5) * 2;
+
+      // Update energy every few frames
+      energyFrame++;
+      if (energyFrame % 4 === 0) renderEnergy(t);
+
+      // ─── Draw background: cosmic energy + stars ───
+      ctx.drawImage(energyCanvas, 0, 0, W, H);
+
+      // Stars
+      for (const star of starsRef.current) {
+        const twinkle = Math.sin(t * star.twinkleSpeed + star.twinklePhase) * 0.3 + 0.7;
+        const alpha = star.brightness * twinkle;
+        if (star.hue > 0) {
+          ctx.fillStyle = `hsla(${star.hue}, 60%, 80%, ${alpha})`;
+        } else {
+          ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        }
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
+        // Subtle glow on bigger stars
+        if (star.size > 1.2) {
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.size * 3, 0, Math.PI * 2);
+          ctx.fillStyle = `hsla(${star.hue || 270}, 50%, 70%, ${alpha * 0.1})`;
+          ctx.fill();
+        }
       }
 
-      const alpha = c.opacity;
-      const ow = c.openWidth * alpha;
+      // ─── Draw fragments (black pieces) on top ───
+      const cx = W / 2;
+      const cy = H / 2;
+      const maxRing = 10;
 
-      if (ow > 0.5) {
-        // Create a path that represents the "opening" of the crack
-        // Draw thick stroke with energy canvas as fill (using clip)
+      for (const frag of fragmentsRef.current) {
+        // Fragment separation: based on crack progress and ring
+        const ringNorm = frag.ring / maxRing;
+        // Inner fragments crack first
+        const fragDelay = ringNorm * 0.6;
+        const fragProgress = Math.max(0, Math.min(1, (crackEase - fragDelay) / (1 - fragDelay)));
+        const sepEase = fragProgress * fragProgress;
+
+        // Direction: away from center
+        const dirX = frag.centroid.x - cx;
+        const dirY = frag.centroid.y - cy;
+        const dirLen = Math.sqrt(dirX * dirX + dirY * dirY) + 1;
+        const ndx = dirX / dirLen;
+        const ndy = dirY / dirLen;
+
+        // Separation distance: inner = more, outer = less
+        const maxSep = frag.depth * 18 + 2;
+        const sepX = ndx * maxSep * sepEase;
+        const sepY = ndy * maxSep * sepEase;
+
+        // Parallax: depth-based displacement from mouse
+        const parallaxStrength = frag.depth * 25 * crackEase;
+        const px = mx * parallaxStrength;
+        const py = my * parallaxStrength;
+
+        // Total offset
+        const totalX = sepX + px;
+        const totalY = sepY + py;
+
+        // Slight rotation
+        const rot = (mx * frag.depth * 0.03 + ndy * sepEase * 0.02) * crackEase;
+
+        // Draw fragment
         ctx.save();
+        ctx.translate(frag.centroid.x + totalX, frag.centroid.y + totalY);
+        ctx.rotate(rot);
+
         ctx.beginPath();
-        // Build a thick path around the crack line
-        for (let i = 0; i < c.points.length; i++) {
-          const p = c.points[i];
-          const progressRatio = i / c.points.length;
-          const taper = Math.sin(progressRatio * Math.PI); // taper at ends
-          const w = ow * taper;
-          if (i === 0) {
-            ctx.moveTo(p.x, p.y - w);
-          } else {
-            ctx.lineTo(p.x, p.y - w);
-          }
-        }
-        for (let i = c.points.length - 1; i >= 0; i--) {
-          const p = c.points[i];
-          const progressRatio = i / c.points.length;
-          const taper = Math.sin(progressRatio * Math.PI);
-          const w = ow * taper;
-          ctx.lineTo(p.x, p.y + w);
+        for (let i = 0; i < frag.originalVerts.length; i++) {
+          const vx = frag.originalVerts[i].x - frag.centroid.x;
+          const vy = frag.originalVerts[i].y - frag.centroid.y;
+          if (i === 0) ctx.moveTo(vx, vy);
+          else ctx.lineTo(vx, vy);
         }
         ctx.closePath();
-        ctx.clip();
 
-        // Draw energy field through the crack opening
-        if (energyCanvasRef.current) {
-          ctx.drawImage(energyCanvasRef.current, 0, 0, ww, hh);
+        // Fragment fill: dark with subtle edge lighting
+        ctx.fillStyle = "rgb(2, 1, 3)";
+        ctx.fill();
+
+        // Edge highlight on inner fragments when cracked
+        if (sepEase > 0.05 && frag.ring <= 7) {
+          ctx.strokeStyle = `hsla(271, 80%, 60%, ${sepEase * 0.15 * frag.depth})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
         }
+
         ctx.restore();
       }
 
-      // Draw branches' energy
-      for (const b of c.branches) drawCrackEnergy(b, ctx, ww, hh);
-    };
+      // ─── Glow along crack gaps (drawn on top) ───
+      if (crackEase > 0.01) {
+        ctx.globalCompositeOperation = "lighter";
 
-    const drawCrackGlow = (c: CrackSegment, ctx: CanvasRenderingContext2D) => {
-      if (c.points.length < 2 || c.opacity < 0.01) return;
-      const alpha = c.opacity;
+        // Central glow
+        const centralIntensity = crackEase * 0.15;
+        const cGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 120 * crackEase);
+        cGrad.addColorStop(0, `hsla(271, 90%, 70%, ${centralIntensity})`);
+        cGrad.addColorStop(0.5, `hsla(300, 80%, 50%, ${centralIntensity * 0.3})`);
+        cGrad.addColorStop(1, "transparent");
+        ctx.fillStyle = cGrad;
+        ctx.fillRect(cx - 150, cy - 150, 300, 300);
 
-      // Outer glow (wide, soft)
-      ctx.beginPath();
-      ctx.moveTo(c.points[0].x, c.points[0].y);
-      for (let i = 1; i < c.points.length; i++) {
-        ctx.lineTo(c.points[i].x, c.points[i].y);
+        // Crack edge glow: draw thin bright lines between adjacent fragments
+        // Simplified: radial glow lines from center
+        const spokeCount = 18;
+        for (let s = 0; s < spokeCount; s++) {
+          const baseAngle = (s / spokeCount) * Math.PI * 2 + (s * 0.17); // stored jitter seed
+          const jitter = Math.sin(s * 7.3 + 2.1) * 0.15;
+          const angle = baseAngle + jitter;
+          const len = (80 + Math.sin(s * 3.7) * 40 + 200 * crackEase);
+
+          // Animate line growth from center
+          const lineProgress = Math.min(1, crackEase * 2 - (s % 3) * 0.1);
+          if (lineProgress <= 0) continue;
+
+          const endX = cx + Math.cos(angle) * len * lineProgress;
+          const endY = cy + Math.sin(angle) * len * lineProgress;
+
+          // Parallax on glow lines too
+          const glowPx = mx * 8 * crackEase;
+          const glowPy = my * 8 * crackEase;
+
+          ctx.beginPath();
+          ctx.moveTo(cx + glowPx * 0.3, cy + glowPy * 0.3);
+
+          // Jagged line
+          const steps = 8;
+          for (let i = 1; i <= steps; i++) {
+            const prog = i / steps;
+            const bx = lerp(cx, endX, prog) + glowPx * prog * 0.5;
+            const by = lerp(cy, endY, prog) + glowPy * prog * 0.5;
+            const jx = Math.sin(s * 13 + i * 5.3) * 3 * prog;
+            const jy = Math.cos(s * 11 + i * 4.7) * 3 * prog;
+            ctx.lineTo(bx + jx, by + jy);
+          }
+
+          // Wide soft glow
+          ctx.strokeStyle = `hsla(271, 80%, 50%, ${0.04 * lineProgress * crackEase})`;
+          ctx.lineWidth = 12;
+          ctx.lineCap = "round";
+          ctx.stroke();
+
+          // Mid glow
+          ctx.strokeStyle = `hsla(290, 80%, 60%, ${0.1 * lineProgress * crackEase})`;
+          ctx.lineWidth = 4;
+          ctx.stroke();
+
+          // Bright core
+          ctx.strokeStyle = `hsla(280, 50%, 85%, ${0.25 * lineProgress * crackEase})`;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+
+        // Concentric crack rings (subtle)
+        for (let r = 1; r <= 4; r++) {
+          const ringRadius = r * 50 + 20;
+          const ringProgress = Math.max(0, crackEase * 1.5 - r * 0.15);
+          if (ringProgress <= 0) continue;
+
+          ctx.beginPath();
+          // Draw partial arcs with gaps
+          const segments = 6 + r * 2;
+          for (let s = 0; s < segments; s++) {
+            const startA = (s / segments) * Math.PI * 2 + Math.sin(r * 3 + s) * 0.1;
+            const arcLen = (0.7 / segments) * Math.PI * 2;
+            ctx.arc(
+              cx + mx * r * 3 * crackEase,
+              cy + my * r * 3 * crackEase,
+              ringRadius * ringProgress,
+              startA,
+              startA + arcLen
+            );
+          }
+          ctx.strokeStyle = `hsla(320, 70%, 55%, ${0.05 * ringProgress})`;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+
+        ctx.globalCompositeOperation = "source-over";
       }
-      ctx.strokeStyle = `hsla(${c.hue}, 80%, 40%, ${alpha * 0.06})`;
-      ctx.lineWidth = c.width * 12 * alpha;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.stroke();
 
-      // Mid glow
-      ctx.strokeStyle = `hsla(${c.hue}, 85%, 50%, ${alpha * 0.15})`;
-      ctx.lineWidth = c.width * 5 * alpha;
-      ctx.stroke();
-
-      // Bright glow
-      ctx.strokeStyle = `hsla(${c.hue}, 85%, 65%, ${alpha * 0.4})`;
-      ctx.lineWidth = c.width * 2 * alpha;
-      ctx.stroke();
-
-      // White-hot core
-      ctx.strokeStyle = `hsla(${c.hue}, 40%, 90%, ${alpha * 0.7})`;
-      ctx.lineWidth = c.width * 0.5 * alpha;
-      ctx.stroke();
-
-      for (const b of c.branches) drawCrackGlow(b, ctx);
-    };
-
-    const fadeCrack = (c: CrackSegment, rate: number) => {
-      c.opacity -= rate;
-      if (c.opacity < 0) c.opacity = 0;
-      for (const b of c.branches) fadeCrack(b, rate * 1.1);
-    };
-
-    let energyFrameCounter = 0;
-
-    const drawFrame = () => {
-      timeRef.current += 0.016;
-      const t = timeRef.current;
-      const ww = W();
-      const hh = H();
-      const now = performance.now();
-
-      // Detect if cursor stopped
-      if (now - mouseRef.current.lastMove > 100) {
-        mouseRef.current.moving = false;
+      // ─── Impact flash at load ───
+      if (t > crackStart && t < crackStart + 0.5) {
+        const flashProgress = (t - crackStart) / 0.5;
+        const flashAlpha = (1 - flashProgress) * 0.3;
+        const flashGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 200 * flashProgress);
+        flashGrad.addColorStop(0, `hsla(280, 90%, 80%, ${flashAlpha})`);
+        flashGrad.addColorStop(0.4, `hsla(271, 80%, 50%, ${flashAlpha * 0.3})`);
+        flashGrad.addColorStop(1, "transparent");
+        ctx.globalCompositeOperation = "lighter";
+        ctx.fillStyle = flashGrad;
+        ctx.fillRect(0, 0, W, H);
+        ctx.globalCompositeOperation = "source-over";
       }
 
-      // Update energy field every 3 frames for performance
-      energyFrameCounter++;
-      if (energyFrameCounter % 3 === 0) {
-        renderEnergyField(t);
-      }
-
-      // ─── BLACK ABSOLUTE ───
-      ctx.fillStyle = "rgb(2, 1, 3)";
-      ctx.fillRect(0, 0, ww, hh);
-
-      // Grow active cracks
-      for (const c of cracksRef.current) {
-        if (c.growing) growCrack(c);
-      }
-
-      // Fade
-      const fadeRate = mouseRef.current.moving ? 0.005 : 0.02;
-      for (const c of cracksRef.current) fadeCrack(c, fadeRate);
-      cracksRef.current = cracksRef.current.filter((c) => c.opacity > 0.005);
-
-      // ─── Draw energy through cracks (additive) ───
-      ctx.globalCompositeOperation = "lighter";
-      for (const c of cracksRef.current) {
-        drawCrackEnergy(c, ctx, ww, hh);
-      }
-
-      // ─── Draw crack glow lines ───
-      for (const c of cracksRef.current) {
-        drawCrackGlow(c, ctx);
-      }
-
-      // ─── Sparks ───
-      const aliveSparks: Spark[] = [];
-      for (const s of sparksRef.current) {
-        s.life++;
-        if (s.life >= s.maxLife) continue;
-        s.x += s.vx;
-        s.y += s.vy;
-        s.vx *= 0.96;
-        s.vy *= 0.96;
-        s.vy += 0.03; // slight gravity
-
-        const lifeRatio = s.life / s.maxLife;
-        const alpha = (1 - lifeRatio) * (1 - lifeRatio);
-
-        // Spark glow
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.size * 3, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${s.hue}, 80%, 50%, ${alpha * 0.15})`;
-        ctx.fill();
-
-        // Spark core
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.size * alpha, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${s.hue}, 60%, 85%, ${alpha * 0.9})`;
-        ctx.fill();
-
-        aliveSparks.push(s);
-      }
-      sparksRef.current = aliveSparks;
-
-      // ─── Impact flashes ───
-      const aliveFlashes: ImpactFlash[] = [];
-      for (const f of flashesRef.current) {
-        f.radius += 8;
-        f.opacity -= 0.04;
-        if (f.opacity <= 0) continue;
-
-        const grad = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.radius);
-        grad.addColorStop(0, `hsla(280, 80%, 80%, ${f.opacity * 0.5})`);
-        grad.addColorStop(0.3, `hsla(271, 90%, 55%, ${f.opacity * 0.2})`);
-        grad.addColorStop(1, "transparent");
-        ctx.fillStyle = grad;
-        ctx.fillRect(f.x - f.radius, f.y - f.radius, f.radius * 2, f.radius * 2);
-
-        aliveFlashes.push(f);
-      }
-      flashesRef.current = aliveFlashes;
-
-      ctx.globalCompositeOperation = "source-over";
-
-      // ─── Subtle ambient cursor glow ───
-      if (mouseRef.current.x > -500) {
-        const mx = mouseRef.current.x;
-        const my = mouseRef.current.y;
-        const grad = ctx.createRadialGradient(mx, my, 0, mx, my, 60);
-        grad.addColorStop(0, "hsla(271, 80%, 50%, 0.02)");
-        grad.addColorStop(1, "transparent");
-        ctx.fillStyle = grad;
-        ctx.fillRect(mx - 60, my - 60, 120, 120);
-      }
+      // ─── Vignette (always) ───
+      const vignette = ctx.createRadialGradient(cx, cy, H * 0.3, cx, cy, H * 0.9);
+      vignette.addColorStop(0, "transparent");
+      vignette.addColorStop(1, "rgba(2, 1, 3, 0.6)");
+      ctx.fillStyle = vignette;
+      ctx.fillRect(0, 0, W, H);
 
       rafRef.current = requestAnimationFrame(drawFrame);
     };
 
+    // Start with black
     ctx.fillStyle = "rgb(2, 1, 3)";
-    ctx.fillRect(0, 0, W(), H());
-    renderEnergyField(0);
+    ctx.fillRect(0, 0, W, H);
+
     rafRef.current = requestAnimationFrame(drawFrame);
 
     return () => {
       window.removeEventListener("resize", resize);
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("scroll", onScroll);
       cancelAnimationFrame(rafRef.current);
     };
-  }, [createCrack, spawnCracksAt]);
+  }, []);
 
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 w-full h-full cursor-none"
+      className="fixed inset-0 w-full h-full"
       style={{ background: "rgb(2, 1, 3)" }}
     />
   );
