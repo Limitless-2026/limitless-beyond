@@ -13,7 +13,7 @@ const perm = new Uint8Array(512);
 })();
 function fade(t: number) { return t * t * t * (t * (t * 6 - 15) + 10); }
 function lerp(a: number, b: number, t: number) { return a + t * (b - a); }
-function grad(hash: number, x: number, y: number) {
+function grad2(hash: number, x: number, y: number) {
   const h = hash & 3;
   return ((h & 1) ? -(h < 2 ? x : y) : (h < 2 ? x : y)) + ((h & 2) ? -(h < 2 ? y : x) : (h < 2 ? y : x));
 }
@@ -22,8 +22,8 @@ function perlin(x: number, y: number) {
   const xf = x - Math.floor(x), yf = y - Math.floor(y);
   const u = fade(xf), v = fade(yf);
   return lerp(
-    lerp(grad(perm[perm[xi] + yi], xf, yf), grad(perm[perm[xi + 1] + yi], xf - 1, yf), u),
-    lerp(grad(perm[perm[xi] + yi + 1], xf, yf - 1), grad(perm[perm[xi + 1] + yi + 1], xf - 1, yf - 1), u),
+    lerp(grad2(perm[perm[xi] + yi], xf, yf), grad2(perm[perm[xi + 1] + yi], xf - 1, yf), u),
+    lerp(grad2(perm[perm[xi] + yi + 1], xf, yf - 1), grad2(perm[perm[xi + 1] + yi + 1], xf - 1, yf - 1), u),
     v
   );
 }
@@ -34,31 +34,38 @@ function fbm(x: number, y: number, oct = 4) {
 }
 
 // ─── Types ───
-interface Fragment {
-  originalVerts: { x: number; y: number }[];
-  centroid: { x: number; y: number };
+interface Shard {
+  // Shape
+  verts: { x: number; y: number }[]; // relative to centroid
+  cx: number; cy: number; // original centroid
+  size: number;
+  // Movement
+  driftX: number; driftY: number; // direction of drift (away from center)
+  driftSpeed: number;
+  rotationSpeed: number;
+  // Depth layer (0 = far/deep, 1 = close/foreground)
   depth: number;
-  offsetX: number;
-  offsetY: number;
-  rotation: number;
-  ring: number;
+  // Animation state
+  currentDrift: number;
+  currentRotation: number;
+  // Visual
+  brightness: number; // edge glow intensity
+  delay: number; // animation delay in seconds
 }
 
-interface Star {
-  x: number;
-  y: number;
+interface Debris {
+  x: number; y: number;
+  vx: number; vy: number;
   size: number;
-  brightness: number;
-  twinkleSpeed: number;
-  twinklePhase: number;
-  hue: number;
+  opacity: number;
+  depth: number;
 }
 
 const HeroCanvas = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const mouseRef = useRef({ x: 0.5, y: 0.5 }); // normalized 0-1
-  const fragmentsRef = useRef<Fragment[]>([]);
-  const starsRef = useRef<Star[]>([]);
+  const mouseRef = useRef({ x: 0.5, y: 0.5 });
+  const shardsRef = useRef<Shard[]>([]);
+  const debrisRef = useRef<Debris[]>([]);
   const startTimeRef = useRef(0);
   const rafRef = useRef(0);
 
@@ -80,95 +87,97 @@ const HeroCanvas = () => {
       canvas.style.width = W + "px";
       canvas.style.height = H + "px";
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      generateFragments();
-      generateStars();
+      generateShards();
     };
 
-    // ─── Generate radial shatter pattern ───
-    const generateFragments = () => {
-      const cx = W / 2;
-      const cy = H / 2;
-      const maxRadius = Math.sqrt(cx * cx + cy * cy) * 1.3;
-      const SPOKES = 18;
-      const RINGS = 10;
-      const fragments: Fragment[] = [];
+    // ─── Generate organic irregular shards ───
+    const generateShards = () => {
+      const cx = W * 0.5;
+      const cy = H * 0.45; // slightly above center, like the reference
+      const shards: Shard[] = [];
+      const debris: Debris[] = [];
+      const maxDist = Math.max(W, H) * 0.7;
 
-      // Generate vertices grid: [ring][spoke]
-      const verts: { x: number; y: number }[][] = [];
+      // Create shards in clusters around the rift center
+      // Large shards at the edges, small and medium scattered throughout
+      const count = 120 + Math.floor((W * H) / 8000);
 
-      // Center point
-      verts[0] = [{ x: cx, y: cy }];
+      for (let i = 0; i < count; i++) {
+        // Distribution: more near center-ish area, spreading outward
+        const angle = Math.random() * Math.PI * 2;
+        // Bias toward middle distances (not too center, not too edge)
+        const distFactor = Math.pow(Math.random(), 0.6);
+        const dist = distFactor * maxDist * 0.9 + 10;
 
-      for (let r = 1; r <= RINGS; r++) {
-        verts[r] = [];
-        const baseRadius = (r / RINGS) * maxRadius;
-        // Inner rings: smaller, more dense. Outer: larger
-        const radiusJitter = r <= 2 ? 0.15 : r <= 5 ? 0.2 : 0.1;
-        for (let s = 0; s < SPOKES; s++) {
-          const baseAngle = (s / SPOKES) * Math.PI * 2;
-          const radius = baseRadius * (1 + (Math.random() - 0.5) * radiusJitter);
-          const angleJitter = (Math.random() - 0.5) * (Math.PI * 2 / SPOKES) * 0.35;
-          const angle = baseAngle + angleJitter;
-          verts[r][s] = {
-            x: cx + Math.cos(angle) * radius,
-            y: cy + Math.sin(angle) * radius,
-          };
-        }
-      }
+        const shardCx = cx + Math.cos(angle) * dist + (Math.random() - 0.5) * 80;
+        const shardCy = cy + Math.sin(angle) * dist * 0.7 + (Math.random() - 0.5) * 60; // squished vertically
 
-      // Inner triangles (center to ring 1)
-      for (let s = 0; s < SPOKES; s++) {
-        const ns = (s + 1) % SPOKES;
-        const v = [verts[0][0], verts[1][s], verts[1][ns]];
-        const centX = (v[0].x + v[1].x + v[2].x) / 3;
-        const centY = (v[0].y + v[1].y + v[2].y) / 3;
-        const dist = Math.sqrt((centX - cx) ** 2 + (centY - cy) ** 2);
-        fragments.push({
-          originalVerts: v,
-          centroid: { x: centX, y: centY },
-          depth: 1 - dist / maxRadius,
-          offsetX: 0, offsetY: 0, rotation: 0,
-          ring: 1,
-        });
-      }
+        // Size: varies dramatically. Close to center = smaller debris, mid = mixed, far = some large
+        const sizeBase = distFactor < 0.3
+          ? 5 + Math.random() * 20
+          : distFactor < 0.6
+            ? 10 + Math.random() * 45
+            : 15 + Math.random() * 60;
+        const size = sizeBase * (0.5 + Math.random());
 
-      // Quad fragments for outer rings
-      for (let r = 1; r < RINGS; r++) {
-        for (let s = 0; s < SPOKES; s++) {
-          const ns = (s + 1) % SPOKES;
-          const v = [verts[r][s], verts[r][ns], verts[r + 1][ns], verts[r + 1][s]];
-          const centX = (v[0].x + v[1].x + v[2].x + v[3].x) / 4;
-          const centY = (v[0].y + v[1].y + v[2].y + v[3].y) / 4;
-          const dist = Math.sqrt((centX - cx) ** 2 + (centY - cy) ** 2);
-          fragments.push({
-            originalVerts: v,
-            centroid: { x: centX, y: centY },
-            depth: Math.max(0, 1 - dist / maxRadius),
-            offsetX: 0, offsetY: 0, rotation: 0,
-            ring: r + 1,
+        // Generate irregular polygon shape
+        const vertCount = 4 + Math.floor(Math.random() * 5);
+        const verts: { x: number; y: number }[] = [];
+        const baseAngle = Math.random() * Math.PI * 2;
+
+        for (let v = 0; v < vertCount; v++) {
+          const va = baseAngle + (v / vertCount) * Math.PI * 2;
+          // Irregular radius for each vertex
+          const vr = size * (0.4 + Math.random() * 0.6);
+          // Make shapes more elongated/jagged
+          const stretch = 0.7 + Math.random() * 0.6;
+          verts.push({
+            x: Math.cos(va) * vr * stretch,
+            y: Math.sin(va) * vr,
           });
         }
-      }
 
-      fragmentsRef.current = fragments;
-    };
+        // Drift direction: away from center
+        const dx = shardCx - cx;
+        const dy = shardCy - cy;
+        const dLen = Math.sqrt(dx * dx + dy * dy) + 1;
 
-    // ─── Generate stars ───
-    const generateStars = () => {
-      const stars: Star[] = [];
-      const count = Math.floor(W * H / 2000);
-      for (let i = 0; i < count; i++) {
-        stars.push({
-          x: Math.random() * W,
-          y: Math.random() * H,
-          size: Math.random() < 0.1 ? 1.5 + Math.random() * 1.5 : 0.3 + Math.random() * 1,
+        const depth = Math.random(); // 0-1 random depth layer
+
+        shards.push({
+          verts,
+          cx: shardCx,
+          cy: shardCy,
+          size,
+          driftX: dx / dLen,
+          driftY: dy / dLen,
+          driftSpeed: 0.3 + Math.random() * 1.5,
+          rotationSpeed: (Math.random() - 0.5) * 0.008,
+          depth,
+          currentDrift: 0,
+          currentRotation: Math.random() * Math.PI * 2,
           brightness: 0.3 + Math.random() * 0.7,
-          twinkleSpeed: 0.5 + Math.random() * 2,
-          twinklePhase: Math.random() * Math.PI * 2,
-          hue: Math.random() > 0.7 ? 270 + Math.random() * 60 : 0,
+          delay: distFactor * 1.2 + Math.random() * 0.3,
         });
       }
-      starsRef.current = stars;
+
+      // Tiny debris particles
+      for (let i = 0; i < 200; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * maxDist * 0.8;
+        debris.push({
+          x: cx + Math.cos(angle) * dist,
+          y: cy + Math.sin(angle) * dist * 0.7,
+          vx: Math.cos(angle) * (0.1 + Math.random() * 0.5),
+          vy: Math.sin(angle) * (0.1 + Math.random() * 0.3),
+          size: 0.5 + Math.random() * 2.5,
+          opacity: 0.3 + Math.random() * 0.7,
+          depth: Math.random(),
+        });
+      }
+
+      shardsRef.current = shards;
+      debrisRef.current = debris;
     };
 
     resize();
@@ -178,45 +187,85 @@ const HeroCanvas = () => {
       mouseRef.current.x = e.clientX / W;
       mouseRef.current.y = e.clientY / H;
     };
-    const onTouchMove = (e: TouchEvent) => {
+    const onTouch = (e: TouchEvent) => {
       const t = e.touches[0];
       if (t) { mouseRef.current.x = t.clientX / W; mouseRef.current.y = t.clientY / H; }
     };
     window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("touchmove", onTouch, { passive: true });
 
     startTimeRef.current = performance.now();
 
-    // ─── Offscreen energy canvas ───
-    const energyCanvas = document.createElement("canvas");
-    const ew = Math.floor(W / 3);
-    const eh = Math.floor(H / 3);
-    energyCanvas.width = ew;
-    energyCanvas.height = eh;
-    const ectx = energyCanvas.getContext("2d")!;
+    // ─── Energy field offscreen canvas ───
+    const eCanvas = document.createElement("canvas");
+    const eScale = 3;
+    const ew = Math.floor(W / eScale);
+    const eh = Math.floor(H / eScale);
+    eCanvas.width = ew;
+    eCanvas.height = eh;
+    const ectx = eCanvas.getContext("2d")!;
 
-    let energyFrame = 0;
-
+    let lastEnergyTime = -1;
     const renderEnergy = (t: number) => {
       const imgData = ectx.createImageData(ew, eh);
       const d = imgData.data;
-      const scale = 0.005;
-      const ts = t * 0.3;
+      const scale = 0.004;
+      const ts = t * 0.25;
+      const ecx = ew / 2;
+      const ecy = eh * 0.45;
+
       for (let y = 0; y < eh; y++) {
         for (let x = 0; x < ew; x++) {
-          const n1 = fbm(x * scale + ts, y * scale + ts * 0.7, 3);
-          const n2 = fbm(x * scale * 1.3 - ts * 0.4, y * scale * 1.1 + ts * 0.3, 3);
-          const swirl = Math.sin(n1 * 5 + t * 0.2) * 0.5 + 0.5;
-          const intensity = Math.max(0, (n1 + n2 * 0.5) * 0.7 + 0.35);
-          // Violet #7B2FFF (123,47,255) ↔ Magenta #C8007A (200,0,122)
-          const r = lerp(200, 123, swirl) * intensity;
-          const g = lerp(0, 47, swirl) * intensity;
-          const b = lerp(122, 255, swirl) * intensity;
-          const bright = Math.max(0, n1 * 3 - 0.8) * 0.5;
+          const dx = (x - ecx) / ew;
+          const dy = (y - ecy) / eh;
+          const distFromCenter = Math.sqrt(dx * dx + dy * dy * 2);
+
+          const n1 = fbm(x * scale + ts, y * scale + ts * 0.6, 4);
+          const n2 = fbm(x * scale * 1.5 - ts * 0.3, y * scale * 1.2 + ts * 0.4, 3);
+          const n3 = fbm(x * scale * 0.7 + ts * 0.15, y * scale * 0.9 - ts * 0.2, 2);
+
+          // Intensity peaks at center, fades outward
+          const centerFalloff = Math.max(0, 1 - distFromCenter * 1.8);
+          const centerPow = Math.pow(centerFalloff, 1.5);
+          const baseIntensity = (n1 * 0.5 + n2 * 0.3 + n3 * 0.2 + 0.5) * centerPow;
+
+          // Color: white-hot center → blue → violet → magenta at edges
+          const colorShift = Math.min(1, distFromCenter * 2.5);
+          const swirl = Math.sin(n1 * 4 + t * 0.15) * 0.5 + 0.5;
+
+          let r: number, g: number, b: number;
+
+          if (colorShift < 0.2) {
+            // White-hot center
+            const inner = colorShift / 0.2;
+            r = lerp(255, 200, inner) * baseIntensity;
+            g = lerp(240, 140, inner) * baseIntensity;
+            b = lerp(255, 255, inner) * baseIntensity;
+          } else if (colorShift < 0.5) {
+            // Blue-violet transition
+            const mid = (colorShift - 0.2) / 0.3;
+            r = lerp(200, 123, mid) * baseIntensity;
+            g = lerp(140, 30, mid) * baseIntensity;
+            b = 255 * baseIntensity;
+          } else {
+            // Violet → magenta at edges
+            const outer = Math.min(1, (colorShift - 0.5) / 0.5);
+            const mg = lerp(0, 1, swirl * outer);
+            r = lerp(123, 200, mg) * baseIntensity;
+            g = lerp(30, 0, outer) * baseIntensity;
+            b = lerp(255, 150, outer) * baseIntensity;
+          }
+
+          // Hot spots
+          const hotspot = Math.max(0, n1 * 2.5 - 0.7) * centerPow;
+          r = Math.min(255, r + hotspot * 200);
+          g = Math.min(255, g + hotspot * 150);
+          b = Math.min(255, b + hotspot * 180);
+
           const idx = (y * ew + x) * 4;
-          d[idx] = Math.min(255, r + bright * 220);
-          d[idx + 1] = Math.min(255, g + bright * 120);
-          d[idx + 2] = Math.min(255, b + bright * 180);
+          d[idx] = r;
+          d[idx + 1] = g;
+          d[idx + 2] = b;
           d[idx + 3] = 255;
         }
       }
@@ -224,245 +273,228 @@ const HeroCanvas = () => {
     };
     renderEnergy(0);
 
-    // ─── Animation ───
+    // ─── Main render loop ───
     const drawFrame = () => {
       const now = performance.now();
-      const elapsed = (now - startTimeRef.current) / 1000; // seconds since load
-      const t = elapsed;
+      const t = (now - startTimeRef.current) / 1000;
 
-      // Crack animation timeline
-      // 0-0.8s: black (suspense)
-      // 0.8-2.5s: cracks form, fragments separate
-      // 2.5+: stable with parallax
-      const crackStart = 0.8;
-      const crackEnd = 2.8;
-      const crackProgress = Math.max(0, Math.min(1, (t - crackStart) / (crackEnd - crackStart)));
-      // Easing: ease-out cubic
-      const crackEase = 1 - Math.pow(1 - crackProgress, 3);
+      // Crack timeline
+      const crackStart = 0.6;
+      const crackDuration = 2.5;
+      const globalProgress = Math.max(0, Math.min(1, (t - crackStart) / crackDuration));
+      const easeProgress = 1 - Math.pow(1 - globalProgress, 2.5);
 
-      // Mouse parallax (centered at 0.5, 0.5)
-      const mx = (mouseRef.current.x - 0.5) * 2; // -1 to 1
+      // Mouse parallax
+      const mx = (mouseRef.current.x - 0.5) * 2;
       const my = (mouseRef.current.y - 0.5) * 2;
 
-      // Update energy every few frames
-      energyFrame++;
-      if (energyFrame % 4 === 0) renderEnergy(t);
-
-      // ─── Draw background: cosmic energy + stars ───
-      ctx.drawImage(energyCanvas, 0, 0, W, H);
-
-      // Stars
-      for (const star of starsRef.current) {
-        const twinkle = Math.sin(t * star.twinkleSpeed + star.twinklePhase) * 0.3 + 0.7;
-        const alpha = star.brightness * twinkle;
-        if (star.hue > 0) {
-          ctx.fillStyle = `hsla(${star.hue}, 60%, 80%, ${alpha})`;
-        } else {
-          ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-        }
-        ctx.beginPath();
-        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-        ctx.fill();
-        // Subtle glow on bigger stars
-        if (star.size > 1.2) {
-          ctx.beginPath();
-          ctx.arc(star.x, star.y, star.size * 3, 0, Math.PI * 2);
-          ctx.fillStyle = `hsla(${star.hue || 270}, 50%, 70%, ${alpha * 0.1})`;
-          ctx.fill();
-        }
+      // Update energy every ~5 frames
+      if (t - lastEnergyTime > 0.08) {
+        renderEnergy(t);
+        lastEnergyTime = t;
       }
 
-      // ─── Draw fragments (black pieces) on top ───
-      const cx = W / 2;
-      const cy = H / 2;
-      const maxRing = 10;
+      // ─── 1. Draw energy field (the universe behind) ───
+      ctx.drawImage(eCanvas, 0, 0, W, H);
 
-      for (const frag of fragmentsRef.current) {
-        // Fragment separation: based on crack progress and ring
-        const ringNorm = frag.ring / maxRing;
-        // Inner fragments crack first
-        const fragDelay = ringNorm * 0.6;
-        const fragProgress = Math.max(0, Math.min(1, (crackEase - fragDelay) / (1 - fragDelay)));
-        const sepEase = fragProgress * fragProgress;
+      // Add star points on top of energy
+      ctx.globalCompositeOperation = "lighter";
+      for (let i = 0; i < 60; i++) {
+        const sx = ((i * 137.5 + 50) % W);
+        const sy = ((i * 97.3 + 30) % H);
+        const twinkle = Math.sin(t * (1 + i * 0.1) + i * 2.3) * 0.4 + 0.6;
+        const starSize = (i % 5 === 0) ? 2 : 0.8;
+        ctx.beginPath();
+        ctx.arc(sx, sy, starSize, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 240, 255, ${twinkle * 0.4})`;
+        ctx.fill();
+      }
+      ctx.globalCompositeOperation = "source-over";
 
-        // Direction: away from center
-        const dirX = frag.centroid.x - cx;
-        const dirY = frag.centroid.y - cy;
-        const dirLen = Math.sqrt(dirX * dirX + dirY * dirY) + 1;
-        const ndx = dirX / dirLen;
-        const ndy = dirY / dirLen;
+      // ─── 2. Draw black shards on top (the "screen" breaking apart) ───
+      for (const shard of shardsRef.current) {
+        const shardProgress = Math.max(0, Math.min(1,
+          (easeProgress - shard.delay * 0.5) / (1 - shard.delay * 0.4)
+        ));
+        const sp = Math.pow(shardProgress, 0.8);
 
-        // Separation distance: inner = more, outer = less
-        const maxSep = frag.depth * 18 + 2;
-        const sepX = ndx * maxSep * sepEase;
-        const sepY = ndy * maxSep * sepEase;
+        // Drift away from center
+        const drift = sp * shard.driftSpeed * 40;
+        const dx = shard.driftX * drift;
+        const dy = shard.driftY * drift;
 
-        // Parallax: depth-based displacement from mouse
-        const parallaxStrength = frag.depth * 25 * crackEase;
-        const px = mx * parallaxStrength;
-        const py = my * parallaxStrength;
+        // Continuous slow drift after initial burst
+        const continuousDrift = Math.max(0, t - crackStart - shard.delay) * shard.driftSpeed * 3;
+        const cdx = shard.driftX * continuousDrift;
+        const cdy = shard.driftY * continuousDrift;
 
-        // Total offset
-        const totalX = sepX + px;
-        const totalY = sepY + py;
+        // Rotation
+        const rot = shard.currentRotation + shard.rotationSpeed * t * 60;
 
-        // Slight rotation
-        const rot = (mx * frag.depth * 0.03 + ndy * sepEase * 0.02) * crackEase;
+        // Parallax
+        const pStr = shard.depth * 20 * Math.min(1, easeProgress * 2);
+        const px = mx * pStr;
+        const py = my * pStr;
 
-        // Draw fragment
+        const finalX = shard.cx + dx + cdx + px;
+        const finalY = shard.cy + dy + cdy + py;
+
+        // Skip if completely off screen
+        if (finalX < -shard.size * 2 || finalX > W + shard.size * 2 ||
+            finalY < -shard.size * 2 || finalY > H + shard.size * 2) continue;
+
         ctx.save();
-        ctx.translate(frag.centroid.x + totalX, frag.centroid.y + totalY);
+        ctx.translate(finalX, finalY);
         ctx.rotate(rot);
 
+        // Scale slightly based on depth (perspective)
+        const perspScale = 0.85 + shard.depth * 0.3;
+        ctx.scale(perspScale, perspScale);
+
+        // Draw shard shape
         ctx.beginPath();
-        for (let i = 0; i < frag.originalVerts.length; i++) {
-          const vx = frag.originalVerts[i].x - frag.centroid.x;
-          const vy = frag.originalVerts[i].y - frag.centroid.y;
-          if (i === 0) ctx.moveTo(vx, vy);
-          else ctx.lineTo(vx, vy);
+        for (let i = 0; i < shard.verts.length; i++) {
+          if (i === 0) ctx.moveTo(shard.verts[i].x, shard.verts[i].y);
+          else ctx.lineTo(shard.verts[i].x, shard.verts[i].y);
         }
         ctx.closePath();
 
-        // Fragment fill: dark with subtle edge lighting
-        ctx.fillStyle = "rgb(2, 1, 3)";
+        // Fill: very dark with slight violet tint for depth
+        const depthTint = Math.floor(shard.depth * 8);
+        ctx.fillStyle = `rgb(${2 + depthTint}, ${1 + depthTint}, ${5 + depthTint * 2})`;
         ctx.fill();
 
-        // Edge highlight on inner fragments when cracked
-        if (sepEase > 0.05 && frag.ring <= 7) {
-          ctx.strokeStyle = `hsla(271, 80%, 60%, ${sepEase * 0.15 * frag.depth})`;
-          ctx.lineWidth = 0.5;
+        // Edge glow: bright violet/magenta edges when cracked
+        if (sp > 0.05) {
+          const edgeAlpha = sp * shard.brightness * 0.4;
+          ctx.strokeStyle = `hsla(271, 90%, 65%, ${edgeAlpha})`;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          // Outer glow
+          ctx.strokeStyle = `hsla(290, 80%, 50%, ${edgeAlpha * 0.3})`;
+          ctx.lineWidth = 4;
           ctx.stroke();
         }
 
         ctx.restore();
       }
 
-      // ─── Glow along crack gaps (drawn on top) ───
-      if (crackEase > 0.01) {
-        ctx.globalCompositeOperation = "lighter";
+      // ─── 3. Debris particles ───
+      ctx.globalCompositeOperation = "lighter";
+      for (const d of debrisRef.current) {
+        const debrisProgress = Math.max(0, easeProgress * 1.5 - 0.2);
+        if (debrisProgress <= 0) continue;
 
-        // Central glow
-        const centralIntensity = crackEase * 0.15;
-        const cGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 120 * crackEase);
-        cGrad.addColorStop(0, `hsla(271, 90%, 70%, ${centralIntensity})`);
-        cGrad.addColorStop(0.5, `hsla(300, 80%, 50%, ${centralIntensity * 0.3})`);
-        cGrad.addColorStop(1, "transparent");
-        ctx.fillStyle = cGrad;
-        ctx.fillRect(cx - 150, cy - 150, 300, 300);
+        const dx = d.vx * t * 30 * debrisProgress;
+        const dy = d.vy * t * 30 * debrisProgress;
+        const px = mx * d.depth * 12;
+        const py = my * d.depth * 12;
+        const x = d.x + dx + px;
+        const y = d.y + dy + py;
 
-        // Crack edge glow: draw thin bright lines between adjacent fragments
-        // Simplified: radial glow lines from center
-        const spokeCount = 18;
-        for (let s = 0; s < spokeCount; s++) {
-          const baseAngle = (s / spokeCount) * Math.PI * 2 + (s * 0.17); // stored jitter seed
-          const jitter = Math.sin(s * 7.3 + 2.1) * 0.15;
-          const angle = baseAngle + jitter;
-          const len = (80 + Math.sin(s * 3.7) * 40 + 200 * crackEase);
+        if (x < -10 || x > W + 10 || y < -10 || y > H + 10) continue;
 
-          // Animate line growth from center
-          const lineProgress = Math.min(1, crackEase * 2 - (s % 3) * 0.1);
-          if (lineProgress <= 0) continue;
+        const alpha = d.opacity * debrisProgress * 0.6;
+        ctx.beginPath();
+        ctx.arc(x, y, d.size * debrisProgress, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(275, 70%, 70%, ${alpha})`;
+        ctx.fill();
 
-          const endX = cx + Math.cos(angle) * len * lineProgress;
-          const endY = cy + Math.sin(angle) * len * lineProgress;
+        if (d.size > 1.5) {
+          ctx.beginPath();
+          ctx.arc(x, y, d.size * 3, 0, Math.PI * 2);
+          ctx.fillStyle = `hsla(271, 80%, 50%, ${alpha * 0.15})`;
+          ctx.fill();
+        }
+      }
 
-          // Parallax on glow lines too
-          const glowPx = mx * 8 * crackEase;
-          const glowPy = my * 8 * crackEase;
+      // ─── 4. Central energy bloom ───
+      const bloomProgress = Math.min(1, easeProgress * 1.5);
+      if (bloomProgress > 0) {
+        const bcx = W * 0.5 + mx * 5;
+        const bcy = H * 0.45 + my * 5;
+        const bloomSize = (150 + bloomProgress * 200) * (1 + Math.sin(t * 0.5) * 0.05);
+
+        // Bright white-violet core
+        const g1 = ctx.createRadialGradient(bcx, bcy, 0, bcx, bcy, bloomSize * 0.3);
+        g1.addColorStop(0, `hsla(270, 40%, 95%, ${bloomProgress * 0.4})`);
+        g1.addColorStop(0.5, `hsla(271, 80%, 70%, ${bloomProgress * 0.2})`);
+        g1.addColorStop(1, "transparent");
+        ctx.fillStyle = g1;
+        ctx.fillRect(bcx - bloomSize, bcy - bloomSize, bloomSize * 2, bloomSize * 2);
+
+        // Wide violet haze
+        const g2 = ctx.createRadialGradient(bcx, bcy, 0, bcx, bcy, bloomSize);
+        g2.addColorStop(0, `hsla(271, 90%, 55%, ${bloomProgress * 0.12})`);
+        g2.addColorStop(0.4, `hsla(290, 80%, 45%, ${bloomProgress * 0.06})`);
+        g2.addColorStop(0.7, `hsla(320, 70%, 35%, ${bloomProgress * 0.02})`);
+        g2.addColorStop(1, "transparent");
+        ctx.fillStyle = g2;
+        ctx.fillRect(bcx - bloomSize, bcy - bloomSize, bloomSize * 2, bloomSize * 2);
+
+        // Energy tendrils (wispy lines radiating from center)
+        for (let i = 0; i < 12; i++) {
+          const baseAngle = (i / 12) * Math.PI * 2 + t * 0.05;
+          const tendrilLen = 80 + Math.sin(t * 0.7 + i * 2) * 40 + bloomProgress * 120;
 
           ctx.beginPath();
-          ctx.moveTo(cx + glowPx * 0.3, cy + glowPy * 0.3);
-
-          // Jagged line
-          const steps = 8;
-          for (let i = 1; i <= steps; i++) {
-            const prog = i / steps;
-            const bx = lerp(cx, endX, prog) + glowPx * prog * 0.5;
-            const by = lerp(cy, endY, prog) + glowPy * prog * 0.5;
-            const jx = Math.sin(s * 13 + i * 5.3) * 3 * prog;
-            const jy = Math.cos(s * 11 + i * 4.7) * 3 * prog;
-            ctx.lineTo(bx + jx, by + jy);
+          ctx.moveTo(bcx, bcy);
+          const steps = 10;
+          for (let s = 1; s <= steps; s++) {
+            const prog = s / steps;
+            const noiseVal = perlin(i * 3 + t * 0.3, prog * 3 + t * 0.2);
+            const tx = bcx + Math.cos(baseAngle + noiseVal * 0.5) * tendrilLen * prog;
+            const ty = bcy + Math.sin(baseAngle + noiseVal * 0.5) * tendrilLen * prog * 0.7;
+            ctx.lineTo(tx, ty);
           }
-
-          // Wide soft glow
-          ctx.strokeStyle = `hsla(271, 80%, 50%, ${0.04 * lineProgress * crackEase})`;
-          ctx.lineWidth = 12;
+          ctx.strokeStyle = `hsla(280, 70%, 65%, ${bloomProgress * 0.06})`;
+          ctx.lineWidth = 3;
           ctx.lineCap = "round";
           ctx.stroke();
 
-          // Mid glow
-          ctx.strokeStyle = `hsla(290, 80%, 60%, ${0.1 * lineProgress * crackEase})`;
-          ctx.lineWidth = 4;
-          ctx.stroke();
-
-          // Bright core
-          ctx.strokeStyle = `hsla(280, 50%, 85%, ${0.25 * lineProgress * crackEase})`;
+          ctx.strokeStyle = `hsla(271, 50%, 85%, ${bloomProgress * 0.1})`;
           ctx.lineWidth = 1;
           ctx.stroke();
         }
-
-        // Concentric crack rings (subtle)
-        for (let r = 1; r <= 4; r++) {
-          const ringRadius = r * 50 + 20;
-          const ringProgress = Math.max(0, crackEase * 1.5 - r * 0.15);
-          if (ringProgress <= 0) continue;
-
-          ctx.beginPath();
-          // Draw partial arcs with gaps
-          const segments = 6 + r * 2;
-          for (let s = 0; s < segments; s++) {
-            const startA = (s / segments) * Math.PI * 2 + Math.sin(r * 3 + s) * 0.1;
-            const arcLen = (0.7 / segments) * Math.PI * 2;
-            ctx.arc(
-              cx + mx * r * 3 * crackEase,
-              cy + my * r * 3 * crackEase,
-              ringRadius * ringProgress,
-              startA,
-              startA + arcLen
-            );
-          }
-          ctx.strokeStyle = `hsla(320, 70%, 55%, ${0.05 * ringProgress})`;
-          ctx.lineWidth = 1;
-          ctx.stroke();
-        }
-
-        ctx.globalCompositeOperation = "source-over";
       }
 
-      // ─── Impact flash at load ───
-      if (t > crackStart && t < crackStart + 0.5) {
-        const flashProgress = (t - crackStart) / 0.5;
-        const flashAlpha = (1 - flashProgress) * 0.3;
-        const flashGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 200 * flashProgress);
-        flashGrad.addColorStop(0, `hsla(280, 90%, 80%, ${flashAlpha})`);
-        flashGrad.addColorStop(0.4, `hsla(271, 80%, 50%, ${flashAlpha * 0.3})`);
-        flashGrad.addColorStop(1, "transparent");
+      ctx.globalCompositeOperation = "source-over";
+
+      // ─── 5. Impact flash at crack start ───
+      if (t > crackStart && t < crackStart + 0.6) {
+        const fp = (t - crackStart) / 0.6;
+        const fa = Math.pow(1 - fp, 2) * 0.5;
         ctx.globalCompositeOperation = "lighter";
-        ctx.fillStyle = flashGrad;
+        const fg = ctx.createRadialGradient(W * 0.5, H * 0.45, 0, W * 0.5, H * 0.45, 300 * fp);
+        fg.addColorStop(0, `hsla(270, 60%, 95%, ${fa})`);
+        fg.addColorStop(0.3, `hsla(271, 80%, 60%, ${fa * 0.4})`);
+        fg.addColorStop(1, "transparent");
+        ctx.fillStyle = fg;
         ctx.fillRect(0, 0, W, H);
         ctx.globalCompositeOperation = "source-over";
       }
 
-      // ─── Vignette (always) ───
-      const vignette = ctx.createRadialGradient(cx, cy, H * 0.3, cx, cy, H * 0.9);
-      vignette.addColorStop(0, "transparent");
-      vignette.addColorStop(1, "rgba(2, 1, 3, 0.6)");
-      ctx.fillStyle = vignette;
+      // ─── 6. Vignette ───
+      const vig = ctx.createRadialGradient(W * 0.5, H * 0.45, H * 0.25, W * 0.5, H * 0.5, H * 1.0);
+      vig.addColorStop(0, "transparent");
+      vig.addColorStop(0.7, "rgba(2, 1, 3, 0.3)");
+      vig.addColorStop(1, "rgba(2, 1, 3, 0.85)");
+      ctx.fillStyle = vig;
       ctx.fillRect(0, 0, W, H);
 
       rafRef.current = requestAnimationFrame(drawFrame);
     };
 
-    // Start with black
+    // Initial black
     ctx.fillStyle = "rgb(2, 1, 3)";
     ctx.fillRect(0, 0, W, H);
-
     rafRef.current = requestAnimationFrame(drawFrame);
 
     return () => {
       window.removeEventListener("resize", resize);
       window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchmove", onTouch);
       cancelAnimationFrame(rafRef.current);
     };
   }, []);
