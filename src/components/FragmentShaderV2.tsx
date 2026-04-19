@@ -239,72 +239,75 @@ void main() {
   vec3 nebColor = mix(nebHot, nebMid, radialT);
   nebColor = mix(nebColor, nebOuter, smoothstep(0.4, 0.9, radialT));
   
-  vec3 nebContrib = vec3(densR, densG, densB) * 1.2;
+  vec3 nebContrib = vec3(densR, densG, densB) * 0.75;
   color += nebColor * nebContrib;
   
-  // Inner hot gas
-  float innerHot = pow(densG, 2.5) * exp(-r * 3.0) * reveal;
-  color += cWhiteHot * innerHot * 0.6;
-  color += cAmber * innerHot * 0.25;
+  // Inner hot gas (atenuado)
+  float innerHot = pow(densG, 2.8) * exp(-r * 3.2) * reveal;
+  color += cWhiteHot * innerHot * 0.32;
+  color += cAmber * innerHot * 0.15;
   
-  // Filaments
+  // Filaments (atenuados)
   float fil = ridged(p * 5.0 + warp(p * 2.0, t * 0.5));
-  fil = pow(fil, 4.0) * exp(-r * 1.8) * reveal;
-  color += mix(cMagenta, cWarm, fil) * fil * 0.8;
+  fil = pow(fil, 4.5) * exp(-r * 2.0) * reveal;
+  color += mix(cMagenta, cWarm, fil) * fil * 0.45;
   
-  // ── SINGULARITY CORE ──
+  // ── SINGULARITY CORE (much softer) ──
   float pulse = 1.0 + sin(t * 1.4) * 0.06 + sin(t * 4.1) * 0.02;
   
-  float core      = exp(-r * 38.0 / pulse) * reveal;
-  float coreGlow  = exp(-r * 13.0 / pulse) * reveal;
-  float coreBloom = exp(-r * 5.0  / pulse) * reveal;
-  float coreHalo  = exp(-r * 1.8  / pulse) * reveal;
+  float core      = exp(-r * 42.0 / pulse) * reveal;
+  float coreGlow  = exp(-r * 15.0 / pulse) * reveal;
+  float coreBloom = exp(-r * 5.5  / pulse) * reveal;
+  float coreHalo  = exp(-r * 2.0  / pulse) * reveal;
   
-  // Lens flares (cross + diagonal)
-  float fH = exp(-abs(p.y) * 95.0) * exp(-abs(p.x) * 3.5);
-  float fV = exp(-abs(p.x) * 110.0) * exp(-abs(p.y) * 4.0);
+  // Lens flares (mucho más sutiles)
+  float fH = exp(-abs(p.y) * 110.0) * exp(-abs(p.x) * 4.0);
+  float fV = exp(-abs(p.x) * 130.0) * exp(-abs(p.y) * 4.5);
   vec2 pR45 = vec2(p.x + p.y, p.y - p.x) * 0.7071;
-  float fD1 = exp(-abs(pR45.y) * 130.0) * exp(-abs(pR45.x) * 5.0);
-  float fD2 = exp(-abs(pR45.x) * 130.0) * exp(-abs(pR45.y) * 5.0);
-  float flare = (fH + fV * 0.85 + (fD1 + fD2) * 0.4) * reveal;
+  float fD1 = exp(-abs(pR45.y) * 150.0) * exp(-abs(pR45.x) * 5.5);
+  float fD2 = exp(-abs(pR45.x) * 150.0) * exp(-abs(pR45.y) * 5.5);
+  float flare = (fH + fV * 0.7 + (fD1 + fD2) * 0.3) * reveal;
   
-  color += cWhiteHot * core * 2.5;
-  color += mix(cWarm, cWhiteHot, 0.6) * coreGlow * 1.0;
-  color += cMagenta * coreBloom * 0.6;
-  color += cViolet * coreHalo * coreHalo * 0.4;
-  color += cWhiteHot * flare * 0.7;
+  color += cWhiteHot * core * 1.2;
+  color += mix(cWarm, cWhiteHot, 0.6) * coreGlow * 0.45;
+  color += cMagenta * coreBloom * 0.28;
+  color += cViolet * coreHalo * coreHalo * 0.2;
+  color += cWhiteHot * flare * 0.25;
   
-  // Mouse cursor glow — soft aura that follows pointer
+  // Mouse cursor aura (sutil)
   float mDist = length(st - mouseUv);
-  float cursorAura = exp(-mDist * 8.0) * 0.15 * reveal;
+  float cursorAura = exp(-mDist * 9.0) * 0.07 * reveal;
   color += mix(cMagenta, cViolet, 0.5) * cursorAura;
   
-  // Energy ring shockwave
+  // Energy ring shockwave (más tenue)
   float ringT = fract(t * 0.12);
   float ringR = ringT * 1.2;
-  float ring = exp(-pow((r - ringR) / 0.04, 2.0)) * (1.0 - ringT) * reveal * 0.5;
+  float ring = exp(-pow((r - ringR) / 0.045, 2.0)) * (1.0 - ringT) * reveal * 0.22;
   color += mix(cViolet, cMagenta, ringT) * ring;
   
-  // Foreground dust motes (parallax with mouse)
+  // Foreground dust motes
   for (float i = 0.0; i < 2.0; i++) {
     vec2 du = st * (10.0 + i * 7.0)
             + vec2(t * 0.012 * (i + 1.0), t * 0.008)
             + parallax * (5.0 + i * 4.0);
     float dn = fbm(du);
-    float mote = smoothstep(0.72, 0.9, dn) * 0.35;
-    color += mote * mix(cViolet, cMagenta, hash21(vec2(i, 1.7))) * 0.18;
+    float mote = smoothstep(0.74, 0.92, dn) * 0.22;
+    color += mote * mix(cViolet, cMagenta, hash21(vec2(i, 1.7))) * 0.10;
   }
   
-  // Vignette tightens with scroll (tunnel effect)
+  // Vignette
   float vigDist = length(st);
-  float vigRadius = mix(1.2, 0.55, min(scroll * 0.5, 1.0));
+  float vigRadius = mix(1.1, 0.5, min(scroll * 0.5, 1.0));
   float vig = smoothstep(vigRadius, 0.15, vigDist);
-  color *= mix(0.10, 1.0, vig);
+  color *= mix(0.08, 0.95, vig);
   
-  // Edge glow on scroll
+  // Edge glow on scroll (sutil)
   float edge = smoothstep(0.4, 0.9, vigDist);
-  color += cMagenta * edge * min(scroll * 0.4, 0.25);
-  color += cViolet  * edge * min(scroll * 0.3, 0.18);
+  color += cMagenta * edge * min(scroll * 0.25, 0.15);
+  color += cViolet  * edge * min(scroll * 0.2,  0.12);
+  
+  // Overall exposure compression — keep the whole image easier on the eyes
+  color *= 0.78;
   
   // Film grain
   float grain = (hash21(uv * uResolution + fract(t)) - 0.5) * 0.024;
