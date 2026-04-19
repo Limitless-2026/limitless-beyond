@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import CustomCursor from "@/components/CustomCursor";
+import ProjectStations from "@/components/ProjectStations";
 
 function isWebGLAvailable(): boolean {
   try {
@@ -157,8 +158,11 @@ const V2 = () => {
         </div>
       </section>
 
+      {/* Constellation — projects floating in space */}
+      <ProjectStations />
+
       {/* Spacer */}
-      <div className="h-[60vh]" />
+      <div className="h-[40vh]" />
     </div>
   );
 };
