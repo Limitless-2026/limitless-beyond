@@ -55,7 +55,7 @@ const Index = () => {
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-light tracking-tight text-foreground leading-[0.95]">
             Los límites
             <br />
-            <span className="italic font-extralight bg-gradient-to-r from-primary via-fuchsia-400 to-primary bg-clip-text text-transparent">
+            <span className="italic font-extralight bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
               están para romperse
             </span>
           </h1>
