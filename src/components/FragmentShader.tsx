@@ -10,15 +10,16 @@ void main() {
 }
 `;
 
-// Realistic shattered glass / dimensional crack shader
-// Inspired by nk.studio - cinematic, volumetric, photographic
+// Cosmic singularity / spatial rupture shader.
+// Inspired by nk.studio — atmospheric, photographic, infinite depth.
+// No hard geometry. Pure light, gas, dust, stars.
 const fragmentShader = /* glsl */ `
 precision highp float;
 
 uniform float uTime;
 uniform vec2 uMouse;
 uniform vec2 uResolution;
-uniform float uCrackProgress;
+uniform float uReveal; // 0 → 1 over time
 
 varying vec2 vUv;
 
@@ -26,13 +27,15 @@ varying vec2 vUv;
 float hash21(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
-
 vec2 hash22(vec2 p) {
   p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
   return fract(sin(p) * 43758.5453);
 }
+float hash31(vec3 p) {
+  return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
+}
 
-float noise(vec2 p) {
+float vnoise(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
   f = f * f * (3.0 - 2.0 * f);
@@ -43,233 +46,211 @@ float noise(vec2 p) {
   return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
+// 3D value noise — gives volumetric feel
+float vnoise3(vec3 p) {
+  vec3 i = floor(p);
+  vec3 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float n000 = hash31(i + vec3(0,0,0));
+  float n100 = hash31(i + vec3(1,0,0));
+  float n010 = hash31(i + vec3(0,1,0));
+  float n110 = hash31(i + vec3(1,1,0));
+  float n001 = hash31(i + vec3(0,0,1));
+  float n101 = hash31(i + vec3(1,0,1));
+  float n011 = hash31(i + vec3(0,1,1));
+  float n111 = hash31(i + vec3(1,1,1));
+  return mix(
+    mix(mix(n000, n100, f.x), mix(n010, n110, f.x), f.y),
+    mix(mix(n001, n101, f.x), mix(n011, n111, f.x), f.y),
+    f.z
+  );
+}
+
+// FBM — fractal brownian motion (cloud-like)
 float fbm(vec2 p) {
   float v = 0.0;
   float a = 0.5;
   mat2 rot = mat2(0.8, 0.6, -0.6, 0.8);
   for (int i = 0; i < 6; i++) {
-    v += a * noise(p);
+    v += a * vnoise(p);
     p = rot * p * 2.0;
     a *= 0.5;
   }
   return v;
 }
 
-// Distance to a line segment
-float sdSegment(vec2 p, vec2 a, vec2 b) {
-  vec2 pa = p - a;
-  vec2 ba = b - a;
-  float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
-  return length(pa - ba * h);
+float fbm3(vec3 p) {
+  float v = 0.0;
+  float a = 0.5;
+  for (int i = 0; i < 5; i++) {
+    v += a * vnoise3(p);
+    p *= 2.02;
+    a *= 0.5;
+  }
+  return v;
 }
 
-// Generate a jagged crack line from origin in a direction, with branching
-// Returns the minimum distance to any crack segment
-float crackBranch(vec2 p, vec2 origin, float angle, float length, float seed) {
-  float minDist = 1e9;
-  vec2 cur = origin;
-  float curAngle = angle;
-  
-  // Walk the main crack with jagged segments
-  for (int i = 0; i < 8; i++) {
-    float t = float(i) / 8.0;
-    float segLen = length * (0.10 + 0.08 * hash21(vec2(seed, float(i))));
-    // Jaggedness — perturb angle each step
-    float jag = (hash21(vec2(seed * 3.7, float(i) * 1.3)) - 0.5) * 0.9;
-    curAngle += jag;
-    vec2 next = cur + vec2(cos(curAngle), sin(curAngle)) * segLen;
-    
-    float d = sdSegment(p, cur, next);
-    minDist = min(minDist, d);
-    
-    cur = next;
-  }
-  return minDist;
+// Ridged noise — for filament / gas streams
+float ridged(vec2 p) {
+  return 1.0 - abs(fbm(p) * 2.0 - 1.0);
 }
 
-// Full crack network from a single impact point
-// x = distance to nearest crack, y = "shard id" for shading
-vec2 crackNetwork(vec2 p, vec2 impact) {
-  float minDist = 1e9;
-  
-  // Main radial cracks (6 primary)
-  const int N = 7;
-  for (int i = 0; i < N; i++) {
-    float fi = float(i);
-    float baseAngle = (fi / float(N)) * 6.2831853 + hash21(vec2(fi, 1.7)) * 0.6;
-    float len = 0.6 + hash21(vec2(fi, 3.1)) * 0.5;
-    float d = crackBranch(p, impact, baseAngle, len, fi + 1.0);
-    minDist = min(minDist, d);
-    
-    // Secondary branches off the main crack
-    vec2 branchOrigin = impact + vec2(cos(baseAngle), sin(baseAngle)) * len * 0.35;
-    float branchAngle = baseAngle + (hash21(vec2(fi, 5.5)) - 0.5) * 1.6;
-    float dBranch = crackBranch(p, branchOrigin, branchAngle, len * 0.5, fi + 20.0);
-    minDist = min(minDist, dBranch);
-    
-    // Third tier — fine cracks
-    vec2 b2 = impact + vec2(cos(baseAngle), sin(baseAngle)) * len * 0.65;
-    float a2 = baseAngle + (hash21(vec2(fi, 9.1)) - 0.5) * 2.0;
-    float d3 = crackBranch(p, b2, a2, len * 0.3, fi + 40.0);
-    minDist = min(minDist, d3);
-  }
-  
-  // Concentric ring fractures (compression cracks near impact)
-  float r = length(p - impact);
-  for (int i = 0; i < 3; i++) {
-    float fi = float(i);
-    float radius = 0.06 + fi * 0.08;
-    float ringDist = abs(r - radius);
-    // Break the ring into arcs (not a full circle)
-    float ang = atan(p.y - impact.y, p.x - impact.x);
-    float arcMask = step(0.3, fract(ang * (2.0 + fi) / 6.2831853 + hash21(vec2(fi, 7.3))));
-    if (arcMask > 0.5) {
-      minDist = min(minDist, ringDist + 0.005);
-    }
-  }
-  
-  return vec2(minDist, hash21(floor(p * 8.0)));
-}
-
+// ─── Main ───
 void main() {
   vec2 uv = vUv;
   float aspect = uResolution.x / uResolution.y;
   vec2 st = (uv - 0.5) * vec2(aspect, 1.0);
   
-  // Mouse parallax (subtle depth shift)
+  // Mouse parallax — very subtle, depth illusion
   vec2 mouse = (uMouse - 0.5) * 2.0;
-  vec2 parallax = mouse * 0.015;
+  vec2 parallax = mouse * 0.02;
   
-  // Impact point — slightly above center for cinematic framing
-  vec2 impact = vec2(0.0, 0.05) + parallax * 0.3;
+  // Singularity center — slightly above middle, cinematic
+  vec2 center = vec2(0.0, 0.04) + parallax * 0.4;
+  vec2 p = st - center;
+  float r = length(p);
+  float ang = atan(p.y, p.x);
   
-  // Distort coordinates with low-freq noise for organic, hand-broken feel
-  vec2 distortP = st + parallax;
-  float warp = fbm(distortP * 1.5) * 0.04;
-  distortP += vec2(warp, fbm(distortP * 1.5 + 7.3) * 0.04 - 0.02);
+  // Time
+  float t = uTime;
   
-  // ─── Compute crack distance field ───
-  vec2 crack = crackNetwork(distortP, impact);
-  float crackDist = crack.x;
-  float shardId = crack.y;
+  // Reveal envelope — gentle, breath-like growth
+  float reveal = uReveal;
   
-  float centerDist = length(st - impact);
+  // ─── 1) DEEP SPACE BACKGROUND ─────────────────────────────
+  // Very subtle violet/indigo ambient, with low-freq cloud variation
+  vec3 cVoid     = vec3(0.005, 0.003, 0.012);
+  vec3 cDeepBlue = vec3(0.02, 0.015, 0.06);
+  vec3 cIndigo   = vec3(0.08, 0.04, 0.18);
+  vec3 cViolet   = vec3(0.45, 0.18, 0.85);
+  vec3 cMagenta  = vec3(0.95, 0.15, 0.55);
+  vec3 cWarm     = vec3(1.0, 0.65, 0.85);
+  vec3 cWhiteHot = vec3(1.0, 0.95, 1.0);
   
-  // ─── Crack rendering ───
-  // Crack core (the dark fissure itself, thin)
-  float crackCore = smoothstep(0.004, 0.0, crackDist);
-  // Crack glow (soft halo of light bleeding from crack)
-  float crackGlow = smoothstep(0.04, 0.0, crackDist);
-  // Wide bleed (atmospheric scattering)
-  float crackBleed = smoothstep(0.15, 0.0, crackDist);
+  // Faint background nebula (always present, very low intensity)
+  float bgClouds = fbm(st * 1.2 + vec2(t * 0.005, t * 0.003));
+  vec3 color = cVoid + cDeepBlue * bgClouds * 0.6;
   
-  // Animation: cracks spread from impact outward
-  float dr = centerDist;
-  // Reveal radius grows over time
-  float revealRadius = uCrackProgress * 1.8;
-  float revealMask = smoothstep(revealRadius, revealRadius - 0.3, dr);
-  // Brightness pulse — cracks brighten as they form
-  float ageAt = clamp((revealRadius - dr) / 0.4, 0.0, 1.0);
-  
-  crackCore *= revealMask;
-  crackGlow *= revealMask * (0.4 + ageAt * 0.6);
-  crackBleed *= revealMask * ageAt;
-  
-  // ─── Energy emerging from crack ───
-  // Volumetric noise behind the crack
-  vec2 energyUv = st * 1.8 + parallax * 2.0;
-  float n1 = fbm(energyUv + uTime * 0.06);
-  float n2 = fbm(energyUv * 2.0 - uTime * 0.04);
-  float n3 = fbm(energyUv * 0.5 + uTime * 0.02);
-  float energyField = n1 * 0.55 + n2 * 0.30 + n3 * 0.15;
-  
-  // Color palette — photographic, restrained (not neon)
-  vec3 cDeep      = vec3(0.02, 0.01, 0.05);   // deep void
-  vec3 cViolet    = vec3(0.35, 0.12, 0.75);   // brand violet
-  vec3 cMagenta   = vec3(0.65, 0.05, 0.45);   // brand magenta
-  vec3 cHot       = vec3(1.0, 0.85, 1.0);     // white-hot light
-  vec3 cWarm      = vec3(1.0, 0.55, 0.85);    // warm pink edge
-  
-  // Light gradient — hot at impact, cooling outward
-  float impactProx = smoothstep(0.5, 0.0, dr);
-  vec3 lightCore = mix(cMagenta, cHot, impactProx);
-  lightCore = mix(cViolet, lightCore, smoothstep(0.7, 0.0, dr));
-  
-  // Energy modulation
-  float energyVar = energyField * 1.4 - 0.2;
-  vec3 energy = lightCore * max(energyVar, 0.0);
-  
-  // ─── Stars / particles in the void behind cracks ───
-  float stars = 0.0;
-  for (float i = 0.0; i < 3.0; i++) {
-    vec2 starUv = st * (40.0 + i * 25.0) + i * 13.7 + parallax * (5.0 + i * 3.0);
+  // ─── 2) DISTANT STARFIELD (parallax layers) ───────────────
+  for (float i = 0.0; i < 4.0; i++) {
+    float depth = 1.0 + i * 1.5;
+    vec2 starUv = st * (50.0 + i * 35.0) + parallax * (10.0 + i * 8.0);
+    starUv += vec2(t * 0.003 * (i + 1.0), 0.0); // very slow drift
     vec2 sid = floor(starUv);
     vec2 sf = fract(starUv) - 0.5;
-    float sh = hash21(sid);
-    if (sh > 0.96) {
-      vec2 sp = (hash22(sid) - 0.5) * 0.5;
+    float sh = hash21(sid + i * 17.3);
+    if (sh > 0.972) {
+      vec2 sp = (hash22(sid + i) - 0.5) * 0.4;
       float sd = length(sf - sp);
-      float twk = sin(uTime * (0.8 + sh * 2.5) + sh * 6.28) * 0.4 + 0.6;
-      stars += smoothstep(0.04, 0.0, sd) * twk * (0.4 + sh * 0.6);
+      float twk = sin(t * (0.5 + sh * 2.0) + sh * 6.28) * 0.4 + 0.6;
+      float brightness = smoothstep(0.05, 0.0, sd) * twk;
+      // Star color — mostly white, occasional warm/cool tints
+      vec3 sc = mix(cWhiteHot, mix(cViolet, cWarm, sh), 0.4);
+      color += sc * brightness * (0.4 + sh * 0.6) / depth;
     }
   }
   
-  // Dust motes drifting (large, soft)
-  float dust = 0.0;
+  // ─── 3) VOLUMETRIC NEBULA (the big one) ───────────────────
+  // Multiple layers of gas, each with different scale & motion
+  
+  // Outer halo — soft, expansive
+  vec3 q = vec3(p * 1.4, t * 0.04);
+  float n_outer = fbm3(q + vec3(parallax * 0.5, 0.0));
+  
+  // Mid gas — turbulent
+  vec3 q2 = vec3(p * 2.6 + vec2(t * 0.02, -t * 0.015), t * 0.06);
+  float n_mid = fbm3(q2);
+  
+  // Inner hot gas — fast, swirling
+  // Convert to polar and add rotation for spiral feel
+  float spiralAng = ang + r * 1.8 + t * 0.05;
+  vec2 spiralP = vec2(cos(spiralAng), sin(spiralAng)) * r;
+  vec3 q3 = vec3(spiralP * 4.5, t * 0.1);
+  float n_inner = fbm3(q3);
+  
+  // Filaments / gas streams — ridged noise gives stringy structure
+  float fil = ridged(p * 6.0 + vec2(t * 0.03, 0.0) + parallax);
+  fil = pow(fil, 2.5);
+  
+  // Distance-based density falloff — nebula concentrates near center
+  float halo     = exp(-r * 1.6) * 1.2;
+  float midDens  = exp(-r * 2.8) * 1.4;
+  float innerDens = exp(-r * 5.0) * 1.8;
+  float coreDens = exp(-r * 12.0) * 2.0;
+  
+  // Reveal: nebula expands from a point
+  float expandR = reveal * 1.6 + 0.05;
+  float reveal_falloff = smoothstep(expandR, expandR * 0.4, r);
+  
+  // Outer cool halo — indigo / deep violet
+  vec3 outerColor = mix(cIndigo, cViolet, n_outer);
+  color += outerColor * halo * n_outer * 0.45 * reveal_falloff;
+  
+  // Mid layer — violet with magenta accents
+  vec3 midColor = mix(cViolet, cMagenta, n_mid * n_mid);
+  color += midColor * midDens * n_mid * 0.7 * reveal_falloff;
+  
+  // Filament gas — bright magenta/pink threads
+  vec3 filColor = mix(cMagenta, cWarm, fil);
+  color += filColor * fil * midDens * 0.55 * reveal_falloff;
+  
+  // Inner hot gas — warm pink to white-hot
+  vec3 innerColor = mix(cMagenta, cWarm, n_inner);
+  innerColor = mix(innerColor, cWhiteHot, smoothstep(0.5, 0.9, n_inner));
+  color += innerColor * innerDens * pow(n_inner, 1.2) * 1.0 * reveal_falloff;
+  
+  // ─── 4) THE SPARK — singularity core ──────────────────────
+  // Bright pulsing core, slightly offset by mouse
+  float pulse = 1.0 + sin(t * 1.3) * 0.08 + sin(t * 3.7) * 0.03;
+  float core = exp(-r * 38.0 / pulse) * reveal;
+  float coreGlow = exp(-r * 14.0 / pulse) * reveal;
+  float coreBloom = exp(-r * 5.5 / pulse) * reveal;
+  
+  // Anisotropic cross-flare (lens spike)
+  float flareH = exp(-abs(p.y) * 90.0) * exp(-abs(p.x) * 4.0);
+  float flareV = exp(-abs(p.x) * 110.0) * exp(-abs(p.y) * 5.0);
+  float flare = (flareH + flareV * 0.7) * reveal;
+  
+  color += cWhiteHot * core * 2.5;
+  color += mix(cWarm, cWhiteHot, 0.5) * coreGlow * 0.9;
+  color += cMagenta * coreBloom * 0.5;
+  color += cViolet * coreBloom * coreBloom * 0.3;
+  color += cWhiteHot * flare * 0.6;
+  
+  // ─── 5) DUST PARTICLES (foreground motes) ─────────────────
   for (float i = 0.0; i < 2.0; i++) {
-    vec2 du = st * (8.0 + i * 5.0) + vec2(uTime * 0.02, uTime * 0.01) * (1.0 + i);
+    vec2 du = st * (12.0 + i * 8.0) + vec2(t * 0.015 * (i + 1.0), t * 0.008) + parallax * (3.0 + i * 2.0);
     float dn = fbm(du);
-    dust += smoothstep(0.65, 0.85, dn) * 0.4;
+    float mote = smoothstep(0.7, 0.88, dn) * 0.3;
+    color += mote * mix(cViolet, cMagenta, hash21(vec2(i, 1.7))) * 0.15;
   }
   
-  // ─── Glass shard surface (subtle facet shading) ───
-  // Each shard gets a slight tonal variation to suggest 3D faceting
-  float shardShade = (shardId - 0.5) * 0.025;
-  // Specular hint along crack edges (light catching the bevel)
-  float specular = smoothstep(0.025, 0.005, crackDist) * smoothstep(0.0, 0.005, crackDist - 0.003);
+  // ─── 6) ATMOSPHERIC GRADIENT ──────────────────────────────
+  // Subtle radial wash adding depth
+  float atmo = exp(-r * 1.2) * 0.15 * reveal;
+  color += cViolet * atmo;
   
-  // ─── Compose ───
-  vec3 color = cDeep;
+  // ─── 7) VIGNETTE ──────────────────────────────────────────
+  float vigDist = length(st);
+  float vig = smoothstep(1.2, 0.15, vigDist);
+  color *= mix(0.15, 1.0, vig);
   
-  // Base surface — very dark glass with subtle facet variation
-  color += shardShade * vec3(0.5, 0.4, 0.7);
-  
-  // Stars and dust visible everywhere but very faint
-  color += stars * vec3(0.85, 0.8, 1.0) * 0.25 * (0.3 + crackBleed * 2.0);
-  color += dust * cViolet * 0.04;
-  
-  // Atmospheric bleed from cracks (soft glow extending into shards)
-  color += energy * crackBleed * 0.5;
-  color += cViolet * crackBleed * 0.15 * uCrackProgress;
-  
-  // Crack glow halo
-  color += lightCore * crackGlow * (0.6 + energyField * 0.8);
-  color += cWarm * crackGlow * 0.2 * impactProx;
-  
-  // Bright crack core — light pouring through
-  vec3 coreColor = mix(cHot, cWarm, 0.3 + energyField * 0.4);
-  color += coreColor * crackCore * (0.9 + impactProx * 0.6);
-  
-  // Specular highlight on shard edges
-  color += vec3(0.9, 0.85, 1.0) * specular * 0.15 * uCrackProgress;
-  
-  // Central impact bloom — the brightest point
-  float bloom = smoothstep(0.35, 0.0, dr) * uCrackProgress;
-  color += cHot * pow(bloom, 3.0) * 0.4;
-  color += cMagenta * pow(bloom, 1.5) * 0.15;
-  
-  // Vignette for cinematic framing
-  float vig = smoothstep(1.1, 0.2, length(st));
-  color *= mix(0.25, 1.0, vig);
-  
-  // Subtle film grain
-  float grain = (hash21(uv * uResolution + uTime) - 0.5) * 0.025;
+  // ─── 8) FILM GRAIN ────────────────────────────────────────
+  float grain = (hash21(uv * uResolution + fract(t)) - 0.5) * 0.022;
   color += grain;
   
-  // Tone mapping — ACES-like soft shoulder
-  color = color / (1.0 + color * 0.8);
+  // ─── 9) TONE MAPPING (filmic) ─────────────────────────────
+  // Soft shoulder — preserves highlights without clipping
+  color = color / (1.0 + color * 0.7);
+  
+  // Slight cool shadows / warm highlights
+  vec3 shadow = vec3(0.95, 0.97, 1.05);
+  vec3 highlight = vec3(1.05, 1.0, 0.98);
+  float lum = dot(color, vec3(0.299, 0.587, 0.114));
+  color *= mix(shadow, highlight, smoothstep(0.0, 0.6, lum));
+  
   // Gamma
-  color = pow(color, vec3(0.92));
+  color = pow(max(color, 0.0), vec3(0.92));
   
   gl_FragColor = vec4(color, 1.0);
 }
@@ -279,13 +260,14 @@ const FragmentShaderMesh = () => {
   const meshRef = useRef<THREE.Mesh>(null);
   const { size } = useThree();
   const startTime = useRef(Date.now());
+  const smoothMouse = useRef(new THREE.Vector2(0.5, 0.5));
 
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
       uMouse: { value: new THREE.Vector2(0.5, 0.5) },
       uResolution: { value: new THREE.Vector2(size.width, size.height) },
-      uCrackProgress: { value: 0 },
+      uReveal: { value: 0 },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
@@ -296,21 +278,23 @@ const FragmentShaderMesh = () => {
     uniforms.uTime.value = elapsed;
     uniforms.uResolution.value.set(size.width, size.height);
 
-    // Crack propagation: starts at 0.3s, takes 3s to fully form
-    const crackStart = 0.3;
-    const crackDuration = 3.0;
-    const progress = Math.max(0, Math.min(1, (elapsed - crackStart) / crackDuration));
-    // Ease out cubic
-    uniforms.uCrackProgress.value = 1 - Math.pow(1 - progress, 3);
+    // Smooth mouse follow (lerp for cinematic feel)
+    uniforms.uMouse.value.lerp(smoothMouse.current, 0.06);
+
+    // Reveal: 0 → 1 over ~3.5s with ease-out, then stays at 1
+    const revealStart = 0.2;
+    const revealDuration = 3.5;
+    const progress = Math.max(0, Math.min(1, (elapsed - revealStart) / revealDuration));
+    uniforms.uReveal.value = 1 - Math.pow(1 - progress, 2.5);
   });
 
   const handlePointerMove = useMemo(() => {
     return (e: { uv?: THREE.Vector2 }) => {
       if (e.uv) {
-        uniforms.uMouse.value.copy(e.uv);
+        smoothMouse.current.copy(e.uv);
       }
     };
-  }, [uniforms]);
+  }, []);
 
   return (
     <mesh ref={meshRef} onPointerMove={handlePointerMove}>
