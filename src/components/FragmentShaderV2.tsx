@@ -213,8 +213,9 @@ void main() {
   vec3 cWhiteHot = vec3(1.0, 0.96, 1.0);
   vec3 cAmber    = vec3(1.0, 0.78, 0.55);
 
-  // ── NEBULA SCENE (igual al v1) ──
-  float bgClouds = fbm(st * 1.0 + vec2(t * 0.004, t * 0.003));
+  // ── NEBULA SCENE (igual al v1) — con interactividad mouse ──
+  // Las nubes de fondo también se desplazan con el mouse
+  float bgClouds = fbm(st * 1.0 + mousePull * 1.5 + vec2(t * 0.004, t * 0.003));
   vec3 nebula = cVoid + cDeepBlue * bgClouds * 0.7;
   nebula += cIndigo * (0.15 + scroll * 0.4);
   nebula += warpStars(st - parallax * 0.3, t, scroll, reveal);
