@@ -347,6 +347,18 @@ const FragmentShaderMeshV2 = () => {
     []
   );
 
+  // Mouse global (window) — la nebulosa reacciona siempre, no sólo sobre el plano
+  useMemo(() => {
+    const onMove = (e: MouseEvent) => {
+      smoothMouse.current.set(
+        e.clientX / window.innerWidth,
+        1 - e.clientY / window.innerHeight
+      );
+    };
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, []);
+
   useFrame(() => {
     const elapsed = (Date.now() - startTime.current) / 1000;
     uniforms.uTime.value = elapsed;
@@ -357,14 +369,15 @@ const FragmentShaderMeshV2 = () => {
     const sy = window.scrollY;
     const vh = window.innerHeight;
 
-    // Hero scroll: 0 → 1 sobre 1.5vh (igual al v1)
-    const targetScroll = Math.max(0, Math.min(1, sy / (vh * 1.5)));
+    // Hero scroll: 0 → 1 sobre 1.8vh — un poco más largo para sentir el dive
+    const targetScroll = Math.max(0, Math.min(1, sy / (vh * 1.8)));
     smoothScroll.current += (targetScroll - smoothScroll.current) * 0.08;
     uniforms.uScroll.value = smoothScroll.current;
 
-    // Starfield: arranca cuando ya cruzaste la singularidad (~2.2vh)
-    const sfTarget = Math.max(0, Math.min(1, (sy - vh * 2.2) / (vh * 0.8)));
-    smoothStarfield.current += (sfTarget - smoothStarfield.current) * 0.08;
+    // Starfield: crossfade MUY suave, ventana ancha (1.5vh)
+    const sfTarget = Math.max(0, Math.min(1, (sy - vh * 1.8) / (vh * 1.5)));
+    // Lerp más lento para que la transición sea bien gradual
+    smoothStarfield.current += (sfTarget - smoothStarfield.current) * 0.04;
     uniforms.uStarfield.value = smoothStarfield.current;
 
     const revealStart = 0.2;
@@ -373,14 +386,8 @@ const FragmentShaderMeshV2 = () => {
     uniforms.uReveal.value = 1 - Math.pow(1 - progress, 2.5);
   });
 
-  const handlePointerMove = useMemo(() => {
-    return (e: { uv?: THREE.Vector2 }) => {
-      if (e.uv) smoothMouse.current.copy(e.uv);
-    };
-  }, []);
-
   return (
-    <mesh ref={meshRef} onPointerMove={handlePointerMove}>
+    <mesh ref={meshRef}>
       <planeGeometry args={[2, 2]} />
       <shaderMaterial
         vertexShader={vertexShader}
