@@ -213,12 +213,15 @@ void main() {
   vec3 cWhiteHot = vec3(1.0, 0.96, 1.0);
   vec3 cAmber    = vec3(1.0, 0.78, 0.55);
 
-  // ── NEBULA SCENE (igual al v1) — con interactividad mouse ──
-  // Las nubes de fondo también se desplazan con el mouse
-  float bgClouds = fbm(st * 1.0 + mousePull * 1.5 + vec2(t * 0.004, t * 0.003));
+  // ── NEBULA SCENE — todo se acerca/aleja con el zoom (dive real) ──
+  // stZoom: igual que st pero zoomeado, para que el fondo también se acerque
+  vec2 stZoom = (st - center) / max(zoomFactor, 0.02);
+
+  float bgClouds = fbm(stZoom * 1.0 + mousePull * 1.5 + vec2(t * 0.004, t * 0.003));
   vec3 nebula = cVoid + cDeepBlue * bgClouds * 0.7;
   nebula += cIndigo * (0.15 + scroll * 0.4);
-  nebula += warpStars(st - parallax * 0.3, t, scroll, reveal);
+  // Las estrellas también se acercan con el dive (warp speed inward)
+  nebula += warpStars(stZoom * 0.5 - parallax * 0.3, t, scroll, reveal);
 
   float zoomNeb = 1.0 / max(zoomFactor * 0.7 + 0.3, 0.1);
   float aberr = 0.012 + scroll * 0.04;
