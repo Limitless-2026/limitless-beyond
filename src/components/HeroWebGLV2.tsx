@@ -10,7 +10,8 @@ const HeroWebGLV2 = () => {
           alpha: false,
           powerPreference: "high-performance",
         }}
-        camera={{ position: [0, 0, 1] }}
+        orthographic
+        camera={{ position: [0, 0, 1], zoom: 1 }}
         style={{ width: "100%", height: "100%" }}
         dpr={[1, 2]}
       >
