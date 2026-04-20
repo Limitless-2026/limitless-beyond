@@ -190,9 +190,17 @@ void main() {
   vec2 mouse = (uMouse - 0.5) * 2.0;
   vec2 parallax = mouse * 0.025 * (1.0 - scroll * 0.7);
 
-  float zoomFactor = 1.0 - scroll * 0.85;
-  vec2 center = vec2(0.0, 0.04 - scroll * 0.04) + parallax * 0.5;
-  vec2 p = (st - center) / max(zoomFactor, 0.05);
+  // ── Mouse gravitational pull on the nebula ──
+  // El mouse curva el espacio: el gas y los UVs se desplazan hacia el cursor
+  vec2 mouseWorld = mouse * 0.55;
+  vec2 toMouse = st - mouseWorld;
+  float dM = length(toMouse);
+  vec2 mousePull = -toMouse * exp(-dM * 2.2) * 0.18 * (1.0 - scroll * 0.5);
+
+  // Zoom mucho más agresivo "hacia adentro de la estrella"
+  float zoomFactor = 1.0 - scroll * 0.96;  // 1 → 0.04 (dive profundo)
+  vec2 center = vec2(0.0, 0.04 - scroll * 0.04) + parallax * 0.5 + mousePull * 0.4;
+  vec2 p = (st - center) / max(zoomFactor, 0.02);
 
   float r = length(p);
 
@@ -205,8 +213,9 @@ void main() {
   vec3 cWhiteHot = vec3(1.0, 0.96, 1.0);
   vec3 cAmber    = vec3(1.0, 0.78, 0.55);
 
-  // ── NEBULA SCENE (igual al v1) ──
-  float bgClouds = fbm(st * 1.0 + vec2(t * 0.004, t * 0.003));
+  // ── NEBULA SCENE (igual al v1) — con interactividad mouse ──
+  // Las nubes de fondo también se desplazan con el mouse
+  float bgClouds = fbm(st * 1.0 + mousePull * 1.5 + vec2(t * 0.004, t * 0.003));
   vec3 nebula = cVoid + cDeepBlue * bgClouds * 0.7;
   nebula += cIndigo * (0.15 + scroll * 0.4);
   nebula += warpStars(st - parallax * 0.3, t, scroll, reveal);
@@ -338,6 +347,18 @@ const FragmentShaderMeshV2 = () => {
     []
   );
 
+  // Mouse global (window) — la nebulosa reacciona siempre, no sólo sobre el plano
+  useMemo(() => {
+    const onMove = (e: MouseEvent) => {
+      smoothMouse.current.set(
+        e.clientX / window.innerWidth,
+        1 - e.clientY / window.innerHeight
+      );
+    };
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, []);
+
   useFrame(() => {
     const elapsed = (Date.now() - startTime.current) / 1000;
     uniforms.uTime.value = elapsed;
@@ -348,14 +369,15 @@ const FragmentShaderMeshV2 = () => {
     const sy = window.scrollY;
     const vh = window.innerHeight;
 
-    // Hero scroll: 0 → 1 sobre 1.5vh (igual al v1)
-    const targetScroll = Math.max(0, Math.min(1, sy / (vh * 1.5)));
+    // Hero scroll: 0 → 1 sobre 1.8vh — un poco más largo para sentir el dive
+    const targetScroll = Math.max(0, Math.min(1, sy / (vh * 1.8)));
     smoothScroll.current += (targetScroll - smoothScroll.current) * 0.08;
     uniforms.uScroll.value = smoothScroll.current;
 
-    // Starfield: arranca cuando ya cruzaste la singularidad (~2.2vh)
-    const sfTarget = Math.max(0, Math.min(1, (sy - vh * 2.2) / (vh * 0.8)));
-    smoothStarfield.current += (sfTarget - smoothStarfield.current) * 0.08;
+    // Starfield: crossfade MUY suave, ventana ancha (1.5vh)
+    const sfTarget = Math.max(0, Math.min(1, (sy - vh * 1.8) / (vh * 1.5)));
+    // Lerp más lento para que la transición sea bien gradual
+    smoothStarfield.current += (sfTarget - smoothStarfield.current) * 0.04;
     uniforms.uStarfield.value = smoothStarfield.current;
 
     const revealStart = 0.2;
@@ -364,14 +386,8 @@ const FragmentShaderMeshV2 = () => {
     uniforms.uReveal.value = 1 - Math.pow(1 - progress, 2.5);
   });
 
-  const handlePointerMove = useMemo(() => {
-    return (e: { uv?: THREE.Vector2 }) => {
-      if (e.uv) smoothMouse.current.copy(e.uv);
-    };
-  }, []);
-
   return (
-    <mesh ref={meshRef} onPointerMove={handlePointerMove}>
+    <mesh ref={meshRef}>
       <planeGeometry args={[2, 2]} />
       <shaderMaterial
         vertexShader={vertexShader}
