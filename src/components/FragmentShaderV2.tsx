@@ -190,9 +190,17 @@ void main() {
   vec2 mouse = (uMouse - 0.5) * 2.0;
   vec2 parallax = mouse * 0.025 * (1.0 - scroll * 0.7);
 
-  float zoomFactor = 1.0 - scroll * 0.85;
-  vec2 center = vec2(0.0, 0.04 - scroll * 0.04) + parallax * 0.5;
-  vec2 p = (st - center) / max(zoomFactor, 0.05);
+  // ── Mouse gravitational pull on the nebula ──
+  // El mouse curva el espacio: el gas y los UVs se desplazan hacia el cursor
+  vec2 mouseWorld = mouse * 0.55;
+  vec2 toMouse = st - mouseWorld;
+  float dM = length(toMouse);
+  vec2 mousePull = -toMouse * exp(-dM * 2.2) * 0.18 * (1.0 - scroll * 0.5);
+
+  // Zoom mucho más agresivo "hacia adentro de la estrella"
+  float zoomFactor = 1.0 - scroll * 0.96;  // 1 → 0.04 (dive profundo)
+  vec2 center = vec2(0.0, 0.04 - scroll * 0.04) + parallax * 0.5 + mousePull * 0.4;
+  vec2 p = (st - center) / max(zoomFactor, 0.02);
 
   float r = length(p);
 
