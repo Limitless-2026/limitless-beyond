@@ -271,7 +271,7 @@ void main() {
 
   float ringT = fract(t * 0.12);
   float ringR = ringT * 1.2;
-  float ring = exp(-pow((r - ringR) / 0.04, 2.0)) * (1.0 - ringT) * reveal * 0.5;
+  float ring = exp(-pow((r - ringR) / 0.04, 2.0)) * (1.0 - ringT) * reveal * 0.4;
   nebula += mix(cViolet, cMagenta, ringT) * ring;
 
   for (float i = 0.0; i < 2.0; i++) {
@@ -279,8 +279,8 @@ void main() {
             + vec2(t * 0.012 * (i + 1.0), t * 0.008)
             + parallax * (4.0 + i * 3.0);
     float dn = fbm(du);
-    float mote = smoothstep(0.72, 0.9, dn) * 0.35;
-    nebula += mote * mix(cViolet, cMagenta, hash21(vec2(i, 1.7))) * 0.18;
+    float mote = smoothstep(0.72, 0.9, dn) * 0.30;
+    nebula += mote * mix(cIndigo, cViolet, hash21(vec2(i, 1.7))) * 0.15;
   }
 
   float vigDist = length(st);
