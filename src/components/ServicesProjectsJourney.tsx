@@ -805,7 +805,9 @@ const ServicesProjectsJourney = () => {
     : 1;
 
   // Estrellas 3D para el pan de cámara con perspectiva.
-  const stars3D = useStars3D(160, 1337);
+  const stars3D = useStars3D(320, 1337);
+  // Motion blur dinámico durante el pico del giro
+  const blurAmount = Math.sin(turnT * Math.PI) * 5;
 
   return (
     <section
