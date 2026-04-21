@@ -32,7 +32,7 @@ const V5 = () => {
     let current = 0;
     let pendingFrame = 0;
     const tick = () => {
-      current += (target - current) * 0.12;
+      current += (target - current) * 0.18;
       if (Math.abs(target - current) < 0.0005) current = target;
       setScrollProgress(current);
       if (current !== target) {
