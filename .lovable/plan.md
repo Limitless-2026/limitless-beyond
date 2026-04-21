@@ -1,38 +1,43 @@
 
 
-# Plan: Hacer que el giro 180° SE SIENTA
+# Plan: Giro 3D a la derecha (no rotación plana)
 
-El problema: el Canvas hace fade a 0 justo cuando arranca el giro, entonces la rotación ocurre sobre un espacio vacío (starfield estático) → visualmente no se percibe el giro. El movimiento de 180° necesita **algo que rote** para ser sentido.
+Entiendo: el giro actual es una **rotación 2D** (como una rueda girando en el plano de la pantalla). Vos querés un giro **3D tipo cámara**, como si la cabeza girara hacia la derecha — el mundo pasa de izquierda a derecha con perspectiva, no dando vueltas circulares.
 
-## Solución: starfield rotante + pivot que expresa el giro
+## Revertir la rotación circular
 
-Tres capas trabajando juntas durante la inflexión (0.42 → 0.58):
+Quito los tres efectos 2D que agregué en el último cambio:
+- `RotatingStarfield` con `transform: rotate()` → fuera.
+- Anillos contrarotantes en el pivote → fuera.
+- Vignette giratoria → fuera.
+- Speed lines con `conic-gradient` → fuera.
 
-### 1. Starfield DOM rotando con el yaw
+## Nuevo: giro 3D horizontal (cámara pan a la derecha)
 
-Agregar un contenedor con estrellas (puntos generados con `box-shadow`) que **rota con el progreso del giro**. Entre `progress 0.42 → 0.58` gira de 0° a 180°. Eso es lo que el ojo va a leer como "giro de cámara".
+Reemplazo por una capa con **perspectiva CSS 3D** que simule el giro de cámara:
 
-- `transform: rotate(...)` aplicado a un `<div>` con ~200 estrellas distribuidas.
-- Z-index entre el Canvas (que ya se apagó) y el pivote magenta.
-- Solo visible durante la transición y primeros frames del Acto II (fade-in/out).
+### Capa de estrellas con `rotateY`
 
-### 2. Motion blur radial en el pivote
+- Contenedor padre con `perspective: 1200px`.
+- Hijo con `transform: rotateY(...)` que va de **0° → 180°** entre progress `0.42 → 0.58`.
+- Dentro del hijo, ~150 estrellas distribuidas en un plano ancho (3x viewport) para que al rotar se vean pasar de izquierda a derecha con profundidad real.
+- Sentido del giro: **negativo** (`rotateY(-180deg)`) → las estrellas pasan hacia la derecha desde la perspectiva del usuario (la cámara gira a la derecha = el mundo se mueve a la izquierda relativo a la vista, pero por el pivote central se lee como pan a la derecha).
 
-El pivote magenta actual es estático en el centro. Para expresar el giro, le agrego:
-- Anillos concéntricos que rotan en sentido contrario al starfield (contrarotación → refuerza la sensación de giro).
-- Speed lines radiales que se expanden desde el centro (estilo warp).
-- Escala que pulsa con el momentum del giro, no solo distancia al centro.
+### Motion lines horizontales
 
-### 3. Vignette giratoria
+Durante el pico del giro (0.46 → 0.54), líneas horizontales tenues que se desplazan de izquierda a derecha (tipo streak de velocidad lateral). Refuerzan la dirección del pan.
 
-Un halo oscuro en los bordes que también rota con el yaw — el borde de la pantalla "se mueve" aunque el centro se mantenga anclado al pivote. Sutil pero sumamos la percepción de rotación.
+### Pivote magenta: escala simple
+
+Vuelvo al pivote original sin anillos rotantes. Solo un punto magenta que crece y se desvanece — mantiene el ancla visual sin competir con el giro 3D.
 
 ### Timing
 
 ```
-progress 0.42 → 0.46  : Canvas fade-out + starfield aparece rotando lento
-progress 0.46 → 0.54  : giro principal (180° en starfield + contrarotación pivote + speed lines)
-progress 0.54 → 0.58  : flash + fade-out del starfield rotante
+progress 0.40 → 0.46  : Canvas 3D fade-out + starfield 3D aparece
+progress 0.42 → 0.58  : rotateY 0° → 180° (giro de cámara a la derecha)
+progress 0.46 → 0.54  : motion lines horizontales (pico del giro)
+progress 0.54 → 0.60  : starfield 3D fade-out + flash
 progress > 0.58       : Acto II (cards)
 ```
 
@@ -40,10 +45,11 @@ progress > 0.58       : Acto II (cards)
 
 **Editado**
 - `src/components/ServicesProjectsJourney.tsx`:
-  - Nuevo componente interno `RotatingStarfield` (DOM, CSS box-shadow stars).
-  - `PivotPoint2D` enriquecido: anillos contrarrotantes + speed lines.
-  - Cálculo del yaw visual (0 → 180°) en base a progress.
+  - Eliminar `RotatingStarfield` con rotate 2D, anillos contrarotantes, vignette giratoria, conic speed lines.
+  - Agregar `Camera3DTurn` (contenedor con `perspective` + hijo con `rotateY`).
+  - Agregar motion lines horizontales con `translateX` animado.
+  - `PivotPoint2D` vuelve a su versión simple (glow radial + escala).
 
 **Sin tocar**
-- Canvas 3D, servicios, cards del Acto II, flash, timing general de fases.
+- Canvas 3D, servicios, cards Acto II, flash, fases y timing general.
 
