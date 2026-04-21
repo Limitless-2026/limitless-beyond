@@ -1,147 +1,115 @@
 
 
-# Plan: V5 — Servicios como viaje 3D entre cuerpos celestes
+# Plan: Unificar Servicios + Proyectos en un solo viaje 3D retrógrado
 
-V4 queda intacto. `/v5` hereda todo de V4 y reemplaza solo la **sección Servicios** (`ServicesNebula`) por una experiencia espacial 3D real: el usuario vuela por el cosmos y va encontrando los 6 servicios como cuerpos celestes en distintas direcciones y profundidades, no en línea recta.
-
-La sección de Proyectos (`ProjectsWarp`) se mantiene como en V4.
+Tenés razón — con `ServicesCosmos` (3D) y `ProjectsWarp` (lineal horizontal) seguidos, la sección se siente repetida: dos "constelaciones" pegadas, cada una pidiendo su propio momento de atención. La solución más fuerte narrativamente es **unificarlas en una sola secuencia continua** donde el usuario atraviesa primero los servicios y después los proyectos en el mismo volumen 3D, pero con una **inversión de dirección** que genera tensión.
 
 ---
 
-## 1. Concepto
+## Concepto
 
-En V4 los servicios viven en una constelación horizontal (scroll mapea a translateX). En V5 se sienten como **cuerpos celestes reales** distribuidos en un volumen 3D. El scroll mueve una "cámara" que atraviesa el espacio: los servicios aparecen arriba, abajo, a la izquierda, lejos, cerca. Cada uno con escala, rotación y textura de gas/nebulosa.
+**Un solo viaje. Dos actos.**
 
-Lenguaje visual alineado con el hero: nebulosa, partículas, violeta eléctrico, magenta quirúrgico en un solo cuerpo (el "impact" — Branding).
+- **Acto I — CAPACIDADES** (lo que podemos hacer): la cámara avanza hacia adelante en el cosmos, encontrando 6 cuerpos-servicio.
+- **Punto de inflexión**: la cámara llega a un "horizonte" — un cuerpo magenta masivo (pivote narrativo). Se frena, gira 180°.
+- **Acto II — PRUEBAS** (lo que ya hicimos): la cámara **vuelve hacia atrás** atravesando el mismo cosmos pero descubriendo 6 cuerpos nuevos — los proyectos — que estaban "detrás" todo el tiempo. El viaje de vuelta es la evidencia de lo que afirmó el Acto I.
 
----
-
-## 2. Nueva ruta `/v5` y componente `ServicesCosmos`
-
-### Ruta
-- Nuevo `src/pages/V5.tsx` — copia exacta de `V4.tsx`.
-- Reemplaza `<ServicesNebula />` por `<ServicesCosmos />`.
-- Badge top-left: `"Limitless · v5"`.
-- `src/App.tsx` — agregar ruta `/v5`.
-
-### Componente nuevo: `src/components/ServicesCosmos.tsx`
-
-**Stack**: `@react-three/fiber@^8.18` + `@react-three/drei@^9.122.0` + `three@>=0.133`.
+Eso responde exacto a tu intuición: **la web retrocede en esas dos secciones**, pero con sentido — no es ir hacia atrás por ir, es "volver mostrando pruebas".
 
 ---
 
-## 3. Mecánica 3D
+## Por qué funciona
 
-### Escena
+- **Elimina la repetición**: una sola escena 3D, un solo sistema de partículas, una sola cámara. No hay dos "cosmos" seguidos.
+- **Narrativa cinematográfica**: ida (promesa) → giro (revelación) → vuelta (evidencia). Clásico y muy reconocible.
+- **Jerarquía de marca**: el único cuerpo magenta (`#C8007A`) es el pivote en el medio del viaje — respeta la regla "aparece UNA sola vez por página".
+- **Scroll coherente con Lenis**: un único tramo largo (sticky 100vh sobre contenedor 900vh) con tres fases claras.
+
+---
+
+## Mecánica
 
 ```text
-Cámara: PerspectiveCamera, fov 55, posición inicial (0, 0, 0).
-Scroll mapea Z de cámara: z = -progress * 60 unidades.
+Contenedor sticky: 900vh (vs. 500vh + 400vh actuales = 900vh, pero unificados).
+progress global: 0 → 1.
 
-Stage sticky: 100vh.
-Contenedor: 500vh (viaje pausado).
+[ 0.00 → 0.42 ]  ACTO I — CAPACIDADES
+  cámara avanza: z = -progress_local * 55
+  serpentea X/Y (sin/cos) — viaje no lineal
+  6 servicios distribuidos en z = -8 a z = -50
+  overlay 2D: "Capacidades · 01 / 06"
 
-6 servicios distribuidos en volumen 3D:
-  #   Servicio           Posición (x, y, z)    Escala  Color
-  01  Diseño Web         (-4,  2, -10)         1.2     violeta
-  02  Desarrollo Web     ( 5, -1, -20)         0.8     violeta claro
-  03  Apps Mobile        (-3, -3, -30)         1.6     violeta profundo
-  04  Software / SaaS    ( 6,  3, -38)         1.0     violeta
-  05  Branding (impact)  (-2,  1, -48)         1.4     MAGENTA
-  06  Publicidad         ( 3, -2, -58)         0.9     violeta
+[ 0.42 → 0.58 ]  INFLEXIÓN — HORIZONTE MAGENTA
+  cámara se frena gradualmente al acercarse al pivote
+  cuerpo magenta central (en z = -55) crece ocupando el FOV
+  micro-flash blanco al "atravesarlo"
+  cámara rota 180° en yaw (π radianes) durante este tramo
+  overlay 2D: transición "Capacidades" → "Pruebas"
+  (texto fade-out + fade-in con 200ms de silencio)
 
-La cámara NO pasa por el centro de cada cuerpo → vuela "entre"
-ellos con micro-desviaciones.
+[ 0.58 → 1.00 ]  ACTO II — PRUEBAS
+  cámara vuelve: z va de -55 hacia -5 (dirección invertida)
+  ahora mira hacia +z, los cuerpos pasan de atrás hacia adelante
+  6 proyectos distribuidos en el MISMO volumen pero en
+    posiciones X/Y distintas a los servicios (no se solapan)
+  overlay 2D: "Pruebas · 01 / 06"
+  al final, cámara frena y el último proyecto queda
+  centrado → transición natural al About
 ```
-
-### Cuerpos celestes (servicios)
-
-Cada servicio es una `<Sphere>` con **shader material custom** (GLSL) que mezcla:
-- Noise fractal (fbm de 3 octavas) → textura de gas/nebulosa.
-- Gradiente radial del color base a un tono oscuro.
-- Rotación propia lenta, velocidad distinta por cuerpo.
-- Glow exterior: esfera transparente 20% más grande, blending aditivo.
-
-El cuerpo #05 (Branding) usa magenta `#C8007A` — único uso de magenta en la página.
-
-### Partículas ambiente
-
-Un `<Points>` con ~800 partículas distribuidas en el volumen de 60 unidades. Polvo estelar que deriva lento en dirección opuesta a la cámara → refuerza viaje.
-
-### Línea de ruta
-
-Curva de Bezier 3D que conecta los 6 cuerpos en orden. `<Line>` delgada (opacity 0.15, violeta). Se "dibuja" progresivamente con `dashOffset` según scroll → la ruta del viaje.
-
-### Labels de servicio (HTML overlay)
-
-Títulos y copy NO se renderizan en 3D (typos borrosos). Usamos `<Html>` de drei proyectando DOM sobre la posición 3D de cada cuerpo:
-
-```text
-  ★ 01
-  DISEÑO WEB
-  Sitios que respiran. Que duelen. Que ganan.
-```
-
-- Fade-in cuando el cuerpo está a menos de 15 unidades de la cámara.
-- Fade-out cuando queda detrás.
-- Arkitech para título, DM Sans 300 para descripción.
 
 ---
 
-## 4. Cámara no lineal
+## Componente único: `ServicesProjectsJourney.tsx`
 
-Para que el viaje no sea una línea recta, la cámara serpentea:
+Reemplaza a `ServicesCosmos` + `ProjectsWarp` en V5. Un solo Canvas R3F:
 
-```text
-camera.x = sin(progress * π * 3) * 1.5
-camera.y = cos(progress * π * 2) * 0.8
-camera.z = -progress * 60
-camera.lookAt(0, 0, camera.z - 5)
-```
+- **Cámara controlada por `useScrollProgress`**: tres rangos de progreso, tres comportamientos.
+- **12 cuerpos celestes** distribuidos en el volumen (6 servicios z: -8 a -50, 6 proyectos z: -50 a -5 en la vuelta con offsets X/Y distintos).
+- **1 pivote magenta** en z = -55, tamaño grande (escala 2.2), único uso de `#C8007A`.
+- **Starfield único**: `<Points>` con ~1200 partículas cubriendo todo el volumen.
+- **Línea de ruta**: Bezier 3D que dibuja el camino de ida Y el camino de vuelta (se colorea progresivamente).
+- **Overlay HTML** (drei `<Html>`): labels de cada cuerpo, fade por distancia 3D. Los servicios muestran copy de V4. Los proyectos muestran los 6 proyectos del `ProjectsWarp` actual.
+- **Overlay 2D fijo**: eyebrow ("Capacidades" / "Pruebas"), contador (01/06), barra de progreso de la sección.
 
-Mouse parallax leve sobre rotación de cámara (±0.05 rad en X/Y) → el usuario siente que puede "mirar alrededor" mientras vuela.
+### Cámara — detalle de la rotación
 
----
+Durante el tramo 0.42→0.58:
+- `yaw` interpola de 0 a π con easing `cubic-bezier(0.7, 0, 0.3, 1)`.
+- El punto de `lookAt` gira con ella: mira hacia `z - 5` en la ida, hacia `z + 5` en la vuelta.
+- Flash blanco sincronizado en el pico (progress_local 0.5) con `mix-blend-mode: screen`, opacity pico 0.4, ancho 0.04.
 
-## 5. Overlay 2D
+### Performance
 
-- **Eyebrow** top-left: `"Capacidades · Cosmos 3D"`.
-- **Contador inferior**: `03 / 06` — actualizado por el servicio más cercano a la cámara (calculado en `useFrame`).
-- **Barra de progreso** 1px abajo.
-- DM Sans 300, 10px, tracking 0.3em, uppercase.
-
----
-
-## 6. Performance
-
-- Canvas con `dpr={[1, 1.5]}`, `gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}`.
-- Shaders mínimos (fbm 3 octavas).
-- `<Points>` con BufferGeometry estática.
+- Un solo `<Canvas>` reemplaza a dos componentes → menos overhead.
 - `frameloop="demand"` fuera del viewport, `"always"` dentro.
-- Fallback a `ServicesNebula` de V4 si WebGL no está disponible (lazy + Suspense + ErrorBoundary).
-- Lenis ya integrado globalmente.
+- Shaders heredados del `ServicesCosmos` actual (fbm 3 octavas).
+- Fallback WebGL → versión 2D lineal apilada (servicios + proyectos de V4) si no hay soporte.
 
 ---
 
-## 7. Detalles visuales
+## Qué se elimina y qué se preserva
 
-- Canvas `transparent` → se ve el starfield global.
-- `<fog>` violeta a partir de z=-40 → cuerpos lejanos se desvanecen en el cosmos.
-- Cuerpo activo (el más cercano) recibe +15% de escala vía spring.
-- Glow pulsa cada 6s, desfasado entre cuerpos.
+**Se elimina de V5**:
+- `<ServicesCosmos />` aislado.
+- `<ProjectsWarp />` aislado.
+- El espaciador de `80vh` entre ambos.
+
+**Se preserva**:
+- Copy de los 6 servicios (de `ServicesNebula`/`ServicesCosmos`).
+- Copy y metadata de los 6 proyectos (de `ProjectsWarp`).
+- Hero, Manifiesto, About, Footer V2 — todo intacto.
+- V2, V3, V4 sin tocar.
 
 ---
 
-## 8. Archivos
+## Archivos
 
-**Nuevos**
-- `src/pages/V5.tsx` — copia de V4 con `<ServicesCosmos />`.
-- `src/components/ServicesCosmos.tsx` — Canvas R3F + cámara + 6 cuerpos + partículas + línea + labels HTML + overlay 2D.
+**Nuevo**
+- `src/components/ServicesProjectsJourney.tsx` — escena R3F única con los dos actos + inflexión.
 
 **Editado**
-- `src/App.tsx` — ruta `/v5`.
-- `package.json` — agregar `@react-three/fiber@^8.18`, `@react-three/drei@^9.122.0`, `three@^0.160` si faltan.
+- `src/pages/V5.tsx` — reemplazar `<ServicesCosmos /> + <ProjectsWarp />` por `<ServicesProjectsJourney />`. Ajustar spacers.
 
 **Sin tocar**
-- V2, V3, V4. Hero, Manifiesto, Proyectos (warp), About y Footer V2 se mantienen idénticos a V4. El único cambio en V5 es la sección de Servicios.
+- Todo lo demás. V2/V3/V4 intactos. Hero, Manifiesto, About, Footer V2 de V5 intactos.
 
