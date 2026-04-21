@@ -70,8 +70,14 @@ const V2 = () => {
   const heroLayerOpacity = scrollProgress < 0.85 ? 1 : Math.max(0, 1 - (scrollProgress - 0.85) * 14);
   const heroLayerHidden = scrollProgress > 0.94;
 
-  // Nebulosa WebGL — fade-out en el último tramo del hero
-  const nebulaOpacity = scrollProgress < 0.78 ? 1 : Math.max(0, 1 - (scrollProgress - 0.78) * 6);
+  // Nebulosa WebGL — hard switch dentro del pico del flash blanco
+  const nebulaVisible = scrollProgress < 0.84;
+
+  // Flash blanco — campana centrada en 0.86 que cubre el cruce nebulosa→starfield
+  const flashCenter = 0.86;
+  const flashWidth = 0.07;
+  const flashD = Math.abs(scrollProgress - flashCenter);
+  const flashOpacity = flashD < flashWidth ? Math.pow(1 - flashD / flashWidth, 1.6) : 0;
 
   // Badge top-left — se atenúa al entrar en proyectos
   const badgeOpacity = scrollProgress < 0.9 ? 1 : Math.max(0, 1 - (scrollProgress - 0.9) * 12);
@@ -82,8 +88,8 @@ const V2 = () => {
       <div
         className="fixed inset-0"
         style={{
-          opacity: nebulaOpacity,
-          transition: "opacity 200ms linear",
+          opacity: nebulaVisible ? 1 : 0,
+          visibility: nebulaVisible ? "visible" : "hidden",
           background: "rgb(2,1,5)",
         }}
       >
@@ -99,9 +105,18 @@ const V2 = () => {
       </div>
 
       {/* Starfield parallax — toma el relevo al final del hero */}
-      <StarfieldParallax visible={scrollProgress > 0.78} />
+      <StarfieldParallax visible={scrollProgress > 0.86} />
 
       <CustomCursor />
+
+      {/* Flash blanco — cubre el cruce nebulosa→starfield */}
+      <div
+        className="fixed inset-0 pointer-events-none z-[8]"
+        style={{
+          background: "white",
+          opacity: flashOpacity,
+        }}
+      />
 
       {/* Overlay oscurecedor — sobre la nebulosa, debajo del texto */}
       <div
