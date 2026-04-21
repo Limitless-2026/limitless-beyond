@@ -73,6 +73,30 @@ const PROJECTS: Body[] = [
 // El pivote magenta se renderiza como overlay 2D DOM (ver PivotPoint2D) para
 // seguir visible cuando el Canvas 3D hace fade-out antes del giro.
 // Los proyectos del ACTO II se renderizan como cards 2D en ProjectsOverlay.
+
+// ============================================================
+// ROTATING STARFIELD (DOM) — para que el giro 180° SE SIENTA
+// Genera ~180 estrellas como box-shadow sobre un único div y lo rota con yaw.
+// ============================================================
+function useStarShadow(count: number, spread: number) {
+  return useMemo(() => {
+    const parts: string[] = [];
+    // seed pseudo-aleatorio determinista para SSR-safe
+    let s = 1337;
+    const rand = () => {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      return s / 0xffffffff;
+    };
+    for (let i = 0; i < count; i++) {
+      const x = (rand() * 2 - 1) * spread;
+      const y = (rand() * 2 - 1) * spread;
+      const size = rand() < 0.85 ? 1 : 2;
+      const alpha = 0.4 + rand() * 0.6;
+      parts.push(`${x.toFixed(1)}px ${y.toFixed(1)}px 0 ${size === 2 ? "0.5px" : "0"} rgba(237,236,232,${alpha.toFixed(2)})`);
+    }
+    return parts.join(", ");
+  }, [count, spread]);
+}
 const ACT_I_BODIES: Body[] = [...SERVICES];
 
 // Fases del viaje
