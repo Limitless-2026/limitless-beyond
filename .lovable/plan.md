@@ -1,99 +1,113 @@
 
 
-# Plan: Sección "Sobre Limitless" (después de Proyectos) + nueva sección de cierre
+# Plan: Crear `/v3` con footer agresivo + pasada de performance global (v2 y v3)
 
-## Ajuste clave
-La sección de manifiesto va **después** de Proyectos, no antes. Y agregamos una sección final más antes del footer para cerrar el viaje con fuerza.
+## Estrategia
+- `v2` queda **intacto en lo visual**, pero recibe la pasada de performance.
+- `v3` es una copia de `v2` con un único cambio narrativo: reemplazar `<PortalCTA />` por el nuevo `<CosmicFooter />` con el scroll-in agresivo estilo NK/Awwwards.
 
 ---
 
-## Parte 1 — "Sobre Limitless" (después de Proyectos)
+## Parte 1 — Nueva ruta `/v3`
 
-### Concepto: "Constelación manifiesto"
-Después del warp de proyectos, el universo se calma. El usuario llega a una zona contemplativa donde ~14 estrellas se conectan progresivamente formando una "L" estilizada (Limitless), mientras el manifiesto se compone palabra por palabra encima.
+### Archivos
+- **Nuevo**: `src/pages/V3.tsx` — copia de `V2.tsx`, con `<PortalCTA />` reemplazado por `<CosmicFooter />` y sin el spacer final (el footer ya tiene su propio largo).
+- **Editado**: `src/App.tsx` — agregar `<Route path="/v3" element={<V3 />} />`.
 
-### Flujo (sticky stage ~280vh)
+### El footer (`CosmicFooter.tsx`)
+
+**Estructura**: contenedor de `~180vh`. Adentro, un stage `sticky top-0 h-screen` que mantiene el footer fijo mientras el progreso interno (0→1) avanza. Cinco capas con rangos solapados.
 
 ```text
-[ 0.00 → 0.15 ]  Aparecen ~14 estrellas dispersas, sin líneas
-[ 0.15 → 0.40 ]  Se conectan secuencialmente formando una "L" sutil
-[ 0.20 → 0.45 ]  Bloque 1: "Somos un estudio de diseño y desarrollo
-                  digital con base en Argentina y mirada global."
-[ 0.45 → 0.70 ]  Bloque 2: "No hacemos sólo sitios — creamos
-                  experiencias que transforman marcas."
-                  (palabra "transforman" en gradiente violeta)
-[ 0.70 → 0.92 ]  Bloque 3: "Estrategia, craft y tecnología.
-                  Para que cada lanzamiento se sienta inevitable."
-[ 0.92 → 1.00 ]  La constelación se desvanece; aparece micro-cierre:
-                  "Si tu idea pide romper moldes, es el tipo de brief
-                   que nos entusiasma."
+Capa 1 — Eyebrow            [ 0.00 → 0.25 ]
+  "Capítulo final ─────"    DM Sans, text-[10px], tracking 0.4em
+
+Capa 2 — Pregunta gigante   [ 0.15 → 0.45 ]
+  "¿LISTOS / PARA CRUZAR?"  Arkitech, clamp(4rem, 12vw, 12rem)
+                            Reveal por palabra, stagger 80ms
+
+Capa 3 — CTA real           [ 0.40 → 0.65 ]
+  "[ INICIAR CONTACTO → ]"  <a href="/contacto">, outline, hover invierte
+                            a violeta, flecha translateX(8px)
+
+Capa 4 — Wordmark de fondo  [ 0.55 → 0.85 ]
+  "L I M I T L E S S"       Arkitech, clamp(6rem, 22vw, 22rem)
+                            Opacidad 0.10, z-index bajo, ancho total
+
+Capa 5 — Meta-footer        [ 0.75 → 1.00 ]
+  Columnas: Estudio · Servicios · Contacto
+  hola@limitless.studio
+  ── (línea magenta 60px, único uso del color de impacto)
+  © 2025 Limitless · Buenos Aires
 ```
 
-### Detalles de craft
-- Canvas 2D (no WebGL) con DPR-aware. ~14 estrellas: 7 forman la "L", 7 de relleno.
-- Líneas de la L: trazo 1px en `--color-accent`, opacidad 0.35, aparecen secuencialmente entre 18% y 38%.
-- Stagger de palabras a 60ms (no por carácter — más elegante).
-- Mouse parallax sutil sobre las estrellas (rotateX/Y máx 4°). Las palabras quedan fijas.
-- Twinkle de estrellas con `requestAnimationFrame` continuo y barato.
-- **Magenta** (`--color-impact`): aparece UNA vez como línea horizontal 60px debajo de la última palabra del cierre.
+### Mecánica de animación (lo que la hace agresiva)
 
-### Tipografía
-- Eyebrow: `Sobre nosotros · Capítulo III` en DM Sans, `text-[10px]` tracking 0.4em.
-- Manifiesto: DM Sans 300, `text-2xl md:text-4xl lg:text-5xl`, leading relajado.
-- Palabras destacadas: gradiente `from-foreground via-primary to-foreground` (mismo que el hero).
+1. **`clip-path: inset(100% 0 0 0)` → `inset(0 0 0 0)`** en cada bloque grande. Eso es una persiana que se levanta y revela el texto desde abajo, no un fade. Es lo que da el efecto físico tipo Awwwards.
+2. **`translateY(40px) → translateY(0)` en simultáneo** con el clip-path. La letra "emerge" del borde inferior del bloque.
+3. **Easing custom** `cubic-bezier(0.16, 1, 0.3, 1)` (expo-out) en cada capa — da peso físico, no se siente "web genérica".
+4. **Stagger por palabra** en la pregunta: cada palabra tiene su propio rango de progreso desfasado 80ms, no entran juntas.
+5. **Capas solapadas**: cuando una termina la otra ya empezó — sensación de construcción continua.
+6. **Sombra inferior sutil** (`box-shadow` en el contenedor) durante el reveal para reforzar que algo "sale de abajo".
+7. **Línea horizontal** que recorre el ancho con clip-path antes de cada bloque grande, como guía visual.
+
+El progreso interno se calcula con un único `scroll listener` RAF-throttled vía el hook compartido nuevo (ver Parte 2).
 
 ---
 
-## Parte 2 — "Llamada al vacío" (nueva, antes del footer)
+## Parte 2 — Pasada de performance (afecta `v2` y `v3` por igual)
 
-### Concepto: "El umbral"
-Después del manifiesto, el viaje necesita un cierre con peso. En vez de un CTA de agencia genérico ("Contactanos"), montamos un **portal**: un círculo de luz violeta que crece con el scroll hasta llenar la pantalla, dentro del cual aparece la invitación final.
+### 2.1 Hooks compartidos (nuevos)
+- **`src/hooks/useScrollProgress.ts`** — un único `scroll` listener global con RAF throttle. Cada sección se suscribe pasando su `ref`; recibe el progreso 0→1 calculado contra su `getBoundingClientRect`. Hoy hay 5 listeners independientes leyendo rects por separado → pasa a 1.
+- **`src/hooks/useMouseParallax.ts`** — un único `mousemove` listener global con RAF throttle. Las 3 secciones que hoy tienen su propio listener se suscriben.
 
-### Flujo (sticky stage ~150vh)
+### 2.2 `StarfieldParallax.tsx` — reescritura
+- **Hoy**: 275 `<span>` con `animation` CSS y `box-shadow` (glow). Cada uno es una capa de compositor.
+- **Cambio**: un único `<canvas>` 2D que dibuja las 3 capas (far/mid/near). Twinkle en RAF a **30fps** (no 60). Glow de la capa near con `radialGradient` cacheado, no `box-shadow`. DPR-aware.
 
-```text
-[ 0.00 → 0.30 ]  Punto de luz violeta diminuto centrado en pantalla.
-                  Eyebrow arriba: "Capítulo final · El umbral"
-[ 0.30 → 0.65 ]  El punto crece a círculo grande con halo difuso.
-                  Aparece pregunta: "¿Listos para cruzar?"
-                  (Arkitech, mayúsculas, tracking extremo)
-[ 0.65 → 0.90 ]  El círculo se expande hasta casi llenar el viewport.
-                  Sub-copy en DM Sans: "Contanos qué querés romper."
-                  Aparece CTA real: botón outline "Iniciar contacto →"
-                  que enlaza a /contacto.
-[ 0.90 → 1.00 ]  El portal se estabiliza, queda visible y se entrega
-                  al footer con un fade suave.
-```
+### 2.3 `AboutConstellation.tsx` — fix crítico
+- **Hoy**: el `useEffect` del canvas tiene `[progress]` en dependencias → cada tick de scroll cancela y recrea el RAF. Eso es lo que más traba.
+- **Cambios**:
+  - Pasar `progress` a un `progressRef.current` y leerlo dentro del `draw`. `useEffect` queda con `[]`.
+  - Cachear los `radialGradient` por estrella (hoy se crean 14 × 60 = 840/seg).
+  - Bajar el loop a 30fps.
+  - Suscribir el scroll al hook compartido.
 
-### Detalles
-- Portal hecho con `radial-gradient` + `box-shadow` masivo en violeta (sin shaders, sin canvas).
-- El CTA es un `<a>` real a `/contacto` (o `#contacto`) — primer elemento clickeable de la página después del nav.
-- Mouse parallax: el portal se desplaza 8px máximo siguiendo al mouse, da sensación de "respira".
-- Dentro del portal, una animación de partículas mínimas (5-6 puntos rotando lento) hechas con CSS `@keyframes` puro.
-- El botón usa `--color-accent` en hover (relleno) — **no** magenta, porque el magenta ya se gastó en la sección anterior.
+### 2.4 `ServicesOrbit.tsx`
+- **Hoy**: `setAngle` re-renderiza React a 60fps + `backdrop-blur-sm` en 6 satélites (bottleneck conocido sobre fondos animados).
+- **Cambios**:
+  - Rotación movida a CSS `@keyframes` (`spin-inner` / `spin-outer`) sobre los anillos. Cada satélite hereda y aplica contra-rotación CSS para mantener el card recto. Cero re-renders por animación.
+  - Hover pausa con `animation-play-state: paused`.
+  - Reemplazar `backdrop-blur-sm` por `rgba(8,6,14,0.78)` opaco + `text-shadow` sutil para legibilidad.
+  - Mouse parallax desde el hook compartido.
 
-### Tipografía
-- Eyebrow: DM Sans, `text-[10px]` tracking 0.4em.
-- "¿Listos para cruzar?": Arkitech, `text-5xl md:text-7xl lg:text-8xl`, tracking 0.15em.
-- Sub-copy: DM Sans 300, `text-base md:text-lg`, opacidad 70.
-- Botón: DM Sans 400, `text-sm`, tracking 0.2em, padding generoso, border 1px.
+### 2.5 `ProjectsWarp.tsx`
+- Aplicar `transform: translateZ(0)` y `contain: layout paint` en el sticky stage para aislar repaint.
+- Cards ocultas: agregar `pointer-events: none` cuando `visibility: hidden`.
 
----
-
-## Continuidad narrativa
-
-```text
-Hero → Servicios → Proyectos → Sobre Limitless → Umbral → Footer
-nebulosa  órbitas    warp        constelación     portal    cierre
-```
-
-Cada sección hereda el lenguaje cósmico y entrega visualmente a la siguiente. El `StarfieldParallax` global sigue presente como fondo en todas las secciones post-hero (ya está activado a partir de `scrollProgress > 0.91` en V2 — habrá que ajustar ese umbral si hace falta para que cubra hasta el final).
+### 2.6 `V2.tsx` y `V3.tsx`
+- Sacar `transition: filter 0.1s linear` del hero (caro durante todo el scroll). El lerp del scroll ya suaviza.
+- Limitar el blur máximo a 8px (hoy llega hasta 12).
+- Migrar el scroll listener al hook compartido.
 
 ---
 
-## Archivos
+## Resumen de archivos
 
-- **Nuevo**: `src/components/AboutConstellation.tsx` — manifiesto con Canvas 2D y stagger por palabra.
-- **Nuevo**: `src/components/PortalCTA.tsx` — sección del umbral con portal violeta y CTA.
-- **Editado**: `src/pages/V2.tsx` — montar `<AboutConstellation />` después de `<ProjectsWarp />` y `<PortalCTA />` antes del footer; ajustar spacers (`h-[20vh]` entre secciones) y revisar el umbral del `StarfieldParallax` para que siga visible hasta el portal.
+**Nuevos**
+- `src/pages/V3.tsx`
+- `src/components/CosmicFooter.tsx`
+- `src/hooks/useScrollProgress.ts`
+- `src/hooks/useMouseParallax.ts`
+
+**Editados**
+- `src/App.tsx` — ruta `/v3`.
+- `src/pages/V2.tsx` — pasada de performance (sin cambios visuales).
+- `src/components/StarfieldParallax.tsx` — reescritura a canvas único.
+- `src/components/AboutConstellation.tsx` — fix RAF + cache de gradientes.
+- `src/components/ServicesOrbit.tsx` — rotación CSS + sin backdrop-blur.
+- `src/components/ProjectsWarp.tsx` — `contain: layout paint`.
+
+**Sin tocar**
+- `PortalCTA.tsx` queda en el repo (sigue montado en `/v2`).
 
