@@ -180,6 +180,19 @@ const ProjectsWarp = () => {
           </span>
           <div className="w-px h-8 bg-gradient-to-b from-foreground/40 to-transparent" />
         </div>
+
+        {/* Indicador de salida — aparece cuando se acaban los proyectos */}
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-30"
+          style={{
+            opacity: Math.max(0, Math.min(1, (progress - (PROJECTS.length - 0.5)) * 2)),
+          }}
+        >
+          <p className="text-[10px] md:text-xs tracking-[0.4em] uppercase text-foreground/60 font-light">
+            Continuar
+          </p>
+          <div className="mt-4 w-px h-12 bg-gradient-to-b from-foreground/40 to-transparent animate-pulse" />
+        </div>
       </div>
     </section>
   );
