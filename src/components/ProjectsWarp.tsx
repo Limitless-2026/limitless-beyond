@@ -62,7 +62,7 @@ const ProjectsWarp = () => {
     <section
       ref={sectionRef}
       className="relative w-full z-10"
-      style={{ height: `${PROJECTS.length * 100 + 50}vh` }}
+      style={{ height: `${PROJECTS.length * 100}vh` }}
     >
       {/* Sticky stage — la perspectiva 3D vive aquí */}
       <div
