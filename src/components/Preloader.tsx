@@ -52,7 +52,7 @@ const Preloader = ({ onDone }: Props) => {
         timers.push(window.setTimeout(() => {
           setExiting(true);
           timers.push(window.setTimeout(onDone, 400));
-        }, 200);
+        }, 200));
       }, 600));
       return () => timers.forEach(clearTimeout);
     }
