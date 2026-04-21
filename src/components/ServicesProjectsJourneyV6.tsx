@@ -963,8 +963,9 @@ const ServicesProjectsJourneyV6 = () => {
           </div>
         </div>
       </div>
+      <ServiceModal service={selectedService} onClose={() => setSelectedService(null)} />
     </section>
   );
 };
 
-export default ServicesProjectsJourney;
+export default ServicesProjectsJourneyV6;
