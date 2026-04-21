@@ -8,6 +8,7 @@ type Subscriber = {
 const subscribers = new Set<Subscriber>();
 let rafId = 0;
 let initialized = false;
+let lenisUnsub: (() => void) | null = null;
 
 function compute() {
   rafId = 0;
@@ -34,8 +35,20 @@ function schedule() {
 function ensureGlobalListener() {
   if (initialized) return;
   initialized = true;
+  // Prefer Lenis if available — single source of truth.
+  type LenisLike = { on: (e: string, cb: () => void) => void; off: (e: string, cb: () => void) => void };
+  const tryWireLenis = () => {
+    const lenis = (window as unknown as { __lenis?: LenisLike }).__lenis;
+    if (!lenis || lenisUnsub) return;
+    lenis.on("scroll", schedule);
+    lenisUnsub = () => lenis.off("scroll", schedule);
+  };
+  tryWireLenis();
+  // Fallback (and complement) — native scroll + resize.
   window.addEventListener("scroll", schedule, { passive: true });
   window.addEventListener("resize", schedule);
+  // Retry wiring Lenis shortly after init in case provider mounts after.
+  setTimeout(tryWireLenis, 0);
 }
 
 /**
