@@ -780,7 +780,7 @@ function isWebGLAvailable(): boolean {
   }
 }
 
-const ServicesProjectsJourney = () => {
+const ServicesProjectsJourneyV6 = () => {
   const sectionRef = useRef<HTMLElement>(null);
   const progress = useScrollProgress(sectionRef);
   const [state, setState] = useState<SceneState>({
@@ -789,6 +789,7 @@ const ServicesProjectsJourney = () => {
     flash: 0,
   });
   const [webgl] = useState(() => isWebGLAvailable());
+  const [selectedService, setSelectedService] = useState<ServiceMeta | null>(null);
 
   if (!webgl) {
     return (
@@ -871,7 +872,11 @@ const ServicesProjectsJourney = () => {
             camera={{ fov: 55, near: 0.1, far: 200, position: [0, 0, 0] }}
             style={{ background: "transparent" }}
           >
-            <Scene progress={progress} onStateChange={setState} />
+            <Scene
+              progress={progress}
+              onStateChange={setState}
+              onSelectService={setSelectedService}
+            />
           </Canvas>
         </div>
 
