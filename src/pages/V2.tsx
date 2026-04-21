@@ -277,8 +277,20 @@ const V2 = () => {
       {/* Projects — warp flythrough */}
       <ProjectsWarp />
 
-      {/* Spacer */}
-      <div className="h-[60vh]" />
+      {/* Spacer entre Proyectos y Sobre Limitless */}
+      <div className="h-[20vh]" />
+
+      {/* Sobre Limitless — constelación manifiesto */}
+      <AboutConstellation />
+
+      {/* Spacer entre Sobre y Umbral */}
+      <div className="h-[20vh]" />
+
+      {/* Umbral — portal de contacto */}
+      <PortalCTA />
+
+      {/* Spacer final antes del footer */}
+      <div className="h-[20vh]" />
     </div>
   );
 };
