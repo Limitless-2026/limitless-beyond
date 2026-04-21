@@ -65,7 +65,8 @@ const V2 = () => {
   };
 
   // Bloque 1 — "Los límites están para romperse"
-  const heroOpacity = fadeInOut(scrollProgress, 0, 0.05, 0.18, 0.30);
+  // Aparece de entrada (opacidad 1 desde 0), queda fija, y desaparece entre 0.18 y 0.30
+  const heroOpacity = fadeInOut(scrollProgress, -0.01, 0, 0.18, 0.30);
   const heroScale = 1 + scrollProgress * 0.6;
   const heroBlur = scrollProgress * 12;
   const subOpacity = heroOpacity;
