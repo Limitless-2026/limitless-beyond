@@ -1,73 +1,99 @@
 
 
-# Plan: Sección "Servicios" cósmica + correcciones de Proyectos
+# Plan: Sección "Sobre Limitless" (después de Proyectos) + nueva sección de cierre
 
-## Parte 1 — Nueva sección de Servicios (entre el hero y proyectos)
-
-### Concepto: "Órbitas de capacidad"
-En lugar de una grilla típica de cards de servicios, los servicios se presentan como **órbitas alrededor de un núcleo central** (un punto de luz violeta tipo agujero blanco). Cada servicio es un satélite que **orbita** lentamente y reacciona al mouse. Mantiene exactamente la misma sintonía cósmica:
-- Fondo negro profundo, mismo `StarfieldParallax` global.
-- Núcleo central pulsante con resplandor violeta/magenta.
-- Servicios dispuestos en 2 órbitas (interna + externa) con rotación lenta automática.
-- Hover en un servicio → frena la rotación, lo agranda, muestra micro-descripción y subraya con un trazo magenta (uso quirúrgico del color de impacto).
-- Tipografía: Arkitech para los títulos cortos de servicio, DM Sans 300 para descripciones.
-
-### Servicios a listar (6, con copy en español)
-1. **Diseño Web** — Sitios que sienten el peso de cada pixel.
-2. **Desarrollo Web** — Código limpio, performance de élite.
-3. **Apps Mobile** — iOS y Android con identidad propia.
-4. **Software / SaaS** — Productos digitales escalables a medida.
-5. **Branding** — Identidades que rompen la inercia visual.
-6. **Publicidad** — Campañas con dirección de arte propia.
-
-### Anclaje narrativo
-- Heading superior (eyebrow): `Capacidades · En órbita`
-- Título principal: `Todo lo que rompe lo conocido` en Arkitech.
-- Después de la órbita, un cierre: `Un solo equipo. Disciplinas que se cruzan.`
-
-### Comportamiento técnico
-- Sección con `min-h-[140vh]`, **sticky stage** al estilo `ProjectsWarp` para que el usuario "permanezca" en el sistema solar mientras las órbitas terminan una rotación visible.
-- Las órbitas usan `requestAnimationFrame` con un ángulo continuo (no scroll-jacking). El scroll solo controla:
-  - Entrada: opacidad y escala del sistema (0 → 1) cuando el sticky entra.
-  - Salida: el núcleo se "colapsa" (escala a 0.2 + flash sutil violeta) cuando se acerca el final del sticky → transición natural a Proyectos.
-- Mouse parallax: leve inclinación (rotateX/rotateY) del contenedor de órbitas según posición del mouse, igual que el resto del sitio.
-- Sin frameworks de animación nuevos — solo React state + RAF + transforms CSS.
-
-### Archivo nuevo
-- `src/components/ServicesOrbit.tsx` — toda la sección.
-
-### Cambio en `src/pages/V2.tsx`
-- Insertar `<ServicesOrbit />` **entre** el "Vacío estelar" y `<ProjectsWarp />`.
-- Mantener `StarfieldParallax visible` para que las estrellas sigan visibles también durante Servicios (cambiar la condición a `scrollProgress > 0.91` ya está bien).
+## Ajuste clave
+La sección de manifiesto va **después** de Proyectos, no antes. Y agregamos una sección final más antes del footer para cerrar el viaje con fuerza.
 
 ---
 
-## Parte 2 — Correcciones de Proyectos (`ProjectsWarp.tsx`)
+## Parte 1 — "Sobre Limitless" (después de Proyectos)
 
-### Problema A: el primer proyecto ya se ve antes de entrar al sticky
-Cuando todavía estoy en el "vacío estelar" o recién entrando, ya aparece la primera card flotando lejos. Debe estar **invisible** hasta que realmente esté en la capa de proyectos.
+### Concepto: "Constelación manifiesto"
+Después del warp de proyectos, el universo se calma. El usuario llega a una zona contemplativa donde ~14 estrellas se conectan progresivamente formando una "L" estilizada (Limitless), mientras el manifiesto se compone palabra por palabra encima.
 
-**Fix**: cambiar el cálculo de `scrolled` para que use el top del sticky (no el top de la sección entera). Hoy `progress` arranca en 0 ya cuando la sección entra al viewport, por eso la card 0 ya tiene `local = 0` y se ve.
-- Aumentar el buffer inicial: pasar de `(raw - 0.3) / 0.7` a `(raw - 0.12) / 0.78` **pero arrancando `progress` desde -1.2** (debajo del umbral de visibilidad). Concretamente: `target = -1.2 + buffered * (PROJECTS.length + 1.2)`.
-- Resultado: cuando recién empieza el sticky, `progress = -1.2` → ninguna card es visible (todas tienen `local < -1.2`). Las cards solo aparecen cuando el usuario ya está scrolleando dentro del rango.
+### Flujo (sticky stage ~280vh)
 
-### Problema B: al salir del último proyecto se "pega" — no se siente que se puede seguir scrolleando
-Después de la última card, el sticky aún ocupa pantalla pero no hay nada visible, así que el usuario no percibe avance.
+```text
+[ 0.00 → 0.15 ]  Aparecen ~14 estrellas dispersas, sin líneas
+[ 0.15 → 0.40 ]  Se conectan secuencialmente formando una "L" sutil
+[ 0.20 → 0.45 ]  Bloque 1: "Somos un estudio de diseño y desarrollo
+                  digital con base en Argentina y mirada global."
+[ 0.45 → 0.70 ]  Bloque 2: "No hacemos sólo sitios — creamos
+                  experiencias que transforman marcas."
+                  (palabra "transforman" en gradiente violeta)
+[ 0.70 → 0.92 ]  Bloque 3: "Estrategia, craft y tecnología.
+                  Para que cada lanzamiento se sienta inevitable."
+[ 0.92 → 1.00 ]  La constelación se desvanece; aparece micro-cierre:
+                  "Si tu idea pide romper moldes, es el tipo de brief
+                   que nos entusiasma."
+```
 
-**Fix doble**:
-1. Reducir la altura final extra del sticky: cambiar `height: ${PROJECTS.length * 100 + 50}vh` a `${PROJECTS.length * 100}vh` y dejar que el spacer externo del V2 maneje la transición (subir el `h-[20vh]` final a `h-[60vh]`).
-2. Agregar **un indicador de salida** dentro del sticky que aparezca cuando `progress > PROJECTS.length - 0.3`:
-   - Texto sutil centrado: `Continuar →` o un guion vertical animado bajando.
-   - Opacidad ligada a `progress` para que se sienta el desvanecimiento del último proyecto y la invitación a seguir.
-3. Empujar la última card a desaparecer un poco antes (cambiar el corte de salida de `local > 0.7` a `local > 0.55`) para que cuando el progress llegue al final, ya no quede nada visible y el "Continuar" tenga protagonismo.
+### Detalles de craft
+- Canvas 2D (no WebGL) con DPR-aware. ~14 estrellas: 7 forman la "L", 7 de relleno.
+- Líneas de la L: trazo 1px en `--color-accent`, opacidad 0.35, aparecen secuencialmente entre 18% y 38%.
+- Stagger de palabras a 60ms (no por carácter — más elegante).
+- Mouse parallax sutil sobre las estrellas (rotateX/Y máx 4°). Las palabras quedan fijas.
+- Twinkle de estrellas con `requestAnimationFrame` continuo y barato.
+- **Magenta** (`--color-impact`): aparece UNA vez como línea horizontal 60px debajo de la última palabra del cierre.
 
-### Archivo a editar
-- `src/components/ProjectsWarp.tsx` — buffer inicial negativo, altura del sticky, fade-out más temprano, indicador de salida.
-- `src/pages/V2.tsx` — montar `<ServicesOrbit />` y agrandar spacer final.
+### Tipografía
+- Eyebrow: `Sobre nosotros · Capítulo III` en DM Sans, `text-[10px]` tracking 0.4em.
+- Manifiesto: DM Sans 300, `text-2xl md:text-4xl lg:text-5xl`, leading relajado.
+- Palabras destacadas: gradiente `from-foreground via-primary to-foreground` (mismo que el hero).
 
 ---
 
-## Resumen de archivos
-- **Nuevo**: `src/components/ServicesOrbit.tsx`
-- **Editado**: `src/pages/V2.tsx`, `src/components/ProjectsWarp.tsx`
+## Parte 2 — "Llamada al vacío" (nueva, antes del footer)
+
+### Concepto: "El umbral"
+Después del manifiesto, el viaje necesita un cierre con peso. En vez de un CTA de agencia genérico ("Contactanos"), montamos un **portal**: un círculo de luz violeta que crece con el scroll hasta llenar la pantalla, dentro del cual aparece la invitación final.
+
+### Flujo (sticky stage ~150vh)
+
+```text
+[ 0.00 → 0.30 ]  Punto de luz violeta diminuto centrado en pantalla.
+                  Eyebrow arriba: "Capítulo final · El umbral"
+[ 0.30 → 0.65 ]  El punto crece a círculo grande con halo difuso.
+                  Aparece pregunta: "¿Listos para cruzar?"
+                  (Arkitech, mayúsculas, tracking extremo)
+[ 0.65 → 0.90 ]  El círculo se expande hasta casi llenar el viewport.
+                  Sub-copy en DM Sans: "Contanos qué querés romper."
+                  Aparece CTA real: botón outline "Iniciar contacto →"
+                  que enlaza a /contacto.
+[ 0.90 → 1.00 ]  El portal se estabiliza, queda visible y se entrega
+                  al footer con un fade suave.
+```
+
+### Detalles
+- Portal hecho con `radial-gradient` + `box-shadow` masivo en violeta (sin shaders, sin canvas).
+- El CTA es un `<a>` real a `/contacto` (o `#contacto`) — primer elemento clickeable de la página después del nav.
+- Mouse parallax: el portal se desplaza 8px máximo siguiendo al mouse, da sensación de "respira".
+- Dentro del portal, una animación de partículas mínimas (5-6 puntos rotando lento) hechas con CSS `@keyframes` puro.
+- El botón usa `--color-accent` en hover (relleno) — **no** magenta, porque el magenta ya se gastó en la sección anterior.
+
+### Tipografía
+- Eyebrow: DM Sans, `text-[10px]` tracking 0.4em.
+- "¿Listos para cruzar?": Arkitech, `text-5xl md:text-7xl lg:text-8xl`, tracking 0.15em.
+- Sub-copy: DM Sans 300, `text-base md:text-lg`, opacidad 70.
+- Botón: DM Sans 400, `text-sm`, tracking 0.2em, padding generoso, border 1px.
+
+---
+
+## Continuidad narrativa
+
+```text
+Hero → Servicios → Proyectos → Sobre Limitless → Umbral → Footer
+nebulosa  órbitas    warp        constelación     portal    cierre
+```
+
+Cada sección hereda el lenguaje cósmico y entrega visualmente a la siguiente. El `StarfieldParallax` global sigue presente como fondo en todas las secciones post-hero (ya está activado a partir de `scrollProgress > 0.91` en V2 — habrá que ajustar ese umbral si hace falta para que cubra hasta el final).
+
+---
+
+## Archivos
+
+- **Nuevo**: `src/components/AboutConstellation.tsx` — manifiesto con Canvas 2D y stagger por palabra.
+- **Nuevo**: `src/components/PortalCTA.tsx` — sección del umbral con portal violeta y CTA.
+- **Editado**: `src/pages/V2.tsx` — montar `<AboutConstellation />` después de `<ProjectsWarp />` y `<PortalCTA />` antes del footer; ajustar spacers (`h-[20vh]` entre secciones) y revisar el umbral del `StarfieldParallax` para que siga visible hasta el portal.
 
