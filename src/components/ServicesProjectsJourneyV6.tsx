@@ -172,19 +172,36 @@ const atmoFragmentShader = /* glsl */ `
 function Planet({
   body,
   cameraPos,
+  serviceMeta,
+  onSelect,
 }: {
   body: Body;
   cameraPos: THREE.Vector3;
+  serviceMeta?: ServiceMeta;
+  onSelect?: (s: ServiceMeta) => void;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const glowRef = useRef<THREE.Mesh>(null);
   const matRef = useRef<THREE.ShaderMaterial>(null);
+  const atmoMatRef = useRef<THREE.ShaderMaterial>(null);
+  const ringRef = useRef<THREE.Mesh>(null);
+  const hoverLerp = useRef(0);
+  const [hover, setHover] = useState(false);
 
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
       uColor: { value: new THREE.Color(body.color) },
       uDark: { value: new THREE.Color(body.color).multiplyScalar(0.15) },
+      uHover: { value: 0 },
+    }),
+    [body.color],
+  );
+
+  const atmoUniforms = useMemo(
+    () => ({
+      uColor: { value: new THREE.Color(body.color) },
+      uHover: { value: 0 },
     }),
     [body.color],
   );
@@ -194,9 +211,15 @@ function Planet({
 
   useFrame((state, delta) => {
     if (matRef.current) matRef.current.uniforms.uTime.value += delta;
+    hoverLerp.current += ((hover ? 1 : 0) - hoverLerp.current) * 0.12;
+    if (matRef.current) matRef.current.uniforms.uHover.value = hoverLerp.current;
+    if (atmoMatRef.current) atmoMatRef.current.uniforms.uHover.value = hoverLerp.current;
     if (meshRef.current) {
-      meshRef.current.rotation.y += delta * spinSpeed;
+      meshRef.current.rotation.y += delta * (spinSpeed + hoverLerp.current * 0.05);
       meshRef.current.rotation.x += delta * spinSpeed * 0.3;
+    }
+    if (ringRef.current) {
+      ringRef.current.rotation.z += delta * 0.05;
     }
     // Scale boost based on true 3D distance
     const dx = cameraPos.x - body.position[0];
@@ -204,7 +227,7 @@ function Planet({
     const dz = cameraPos.z - body.position[2];
     const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
     const active = 1 - Math.min(dist / 12, 1);
-    const targetScale = body.scale * (1 + active * 0.15);
+    const targetScale = body.scale * (1 + active * 0.15 + hoverLerp.current * 0.12);
     if (meshRef.current) {
       meshRef.current.scale.lerp(
         new THREE.Vector3(targetScale, targetScale, targetScale),
@@ -214,10 +237,27 @@ function Planet({
     if (glowRef.current) {
       const t = state.clock.elapsedTime;
       const pulse = 1 + Math.sin(t * (Math.PI / 3) + pulsePhase) * 0.05;
-      const g = targetScale * (body.impact ? 1.4 : 1.22) * pulse;
+      const g = targetScale * (body.impact ? 1.4 : 1.22) * pulse * (1 + hoverLerp.current * 0.15);
       glowRef.current.scale.set(g, g, g);
     }
   });
+
+  const interactive = !!(serviceMeta && onSelect);
+  const handleClick = (e: any) => {
+    if (!interactive) return;
+    e.stopPropagation();
+    onSelect!(serviceMeta!);
+  };
+  const handleEnter = () => {
+    if (!interactive) return;
+    setHover(true);
+    document.body.style.cursor = "pointer";
+  };
+  const handleLeave = () => {
+    if (!interactive) return;
+    setHover(false);
+    document.body.style.cursor = "";
+  };
 
   return (
     <group position={body.position}>
@@ -231,13 +271,46 @@ function Planet({
           depthWrite={false}
         />
       </mesh>
-      <mesh ref={meshRef}>
+      {/* Saturn-style ring for services with hasRing */}
+      {serviceMeta?.hasRing && (
+        <mesh ref={ringRef} rotation={[Math.PI / 2.4, 0, 0]}>
+          <ringGeometry args={[1.35, 1.85, 96]} />
+          <meshBasicMaterial
+            color={body.color}
+            transparent
+            opacity={0.32}
+            side={THREE.DoubleSide}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+          />
+        </mesh>
+      )}
+      <mesh
+        ref={meshRef}
+        onClick={handleClick}
+        onPointerOver={handleEnter}
+        onPointerOut={handleLeave}
+      >
         <sphereGeometry args={[1, 64, 64]} />
         <shaderMaterial
           ref={matRef}
           vertexShader={planetVertexShader}
           fragmentShader={planetFragmentShader}
           uniforms={uniforms}
+        />
+      </mesh>
+      {/* Atmosphere — fresnel halo */}
+      <mesh scale={1.18}>
+        <sphereGeometry args={[1, 48, 48]} />
+        <shaderMaterial
+          ref={atmoMatRef}
+          vertexShader={planetVertexShader}
+          fragmentShader={atmoFragmentShader}
+          uniforms={atmoUniforms}
+          transparent
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          side={THREE.BackSide}
         />
       </mesh>
     </group>
