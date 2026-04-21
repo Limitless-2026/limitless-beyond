@@ -69,10 +69,11 @@ const PROJECTS: Body[] = [
   { id: "p6", number: "06", title: "COSMOS TRAVEL",   desc: "Marketplace · 2025",      position: [-3, -2,  -6], scale: 1.0, color: "#7B2FFF", act: "II", image: imgCosmosTravel },
 ];
 
-// ACTO I bodies = servicios + pivote (los que se renderizan como planetas con shader).
-// Los proyectos del ACTO II se renderizan como cards 3D flotantes (HTML transform),
-// NO como cuerpos celestes.
-const ACT_I_BODIES: Body[] = [...SERVICES, PIVOT];
+// ACTO I bodies = servicios (planetas con shader).
+// El pivote magenta se renderiza como overlay 2D DOM (ver PivotPoint2D) para
+// seguir visible cuando el Canvas 3D hace fade-out antes del giro.
+// Los proyectos del ACTO II se renderizan como cards 2D en ProjectsOverlay.
+const ACT_I_BODIES: Body[] = [...SERVICES];
 
 // Fases del viaje
 const ACT_I_END = 0.42;
@@ -412,12 +413,16 @@ function ProjectsOverlay({ progress }: { progress: number }) {
   const local = -0.6 + clamped * (PROJECTS.length + 0.8);
 
   // Fade de entrada del overlay entero: aparece justo al terminar la inflexión.
-  const overlayFade =
+  const enterFade =
     progress < INFLEXION_END - 0.01
       ? 0
       : progress < INFLEXION_END + 0.04
       ? (progress - (INFLEXION_END - 0.01)) / 0.05
       : 1;
+  // Fade de salida: cierre limpio a negro antes de pasar a About
+  const exitFade =
+    progress < 0.96 ? 1 : progress < 1 ? Math.max(0, 1 - (progress - 0.96) / 0.04) : 0;
+  const overlayFade = enterFade * exitFade;
 
   if (overlayFade <= 0.001) return null;
 
@@ -439,7 +444,9 @@ function ProjectsOverlay({ progress }: { progress: number }) {
           const l = local - i;
           // Z: de -2200 (muy lejos) a +200 (pasado de largo)
           const z = -2200 + l * 2400;
-          const opacity =
+          // Cutoff duro al salir (l > 0.9): evita que el borde de la card
+          // quede dibujando una línea horizontal residual.
+          const rawOpacity =
             l < -1.2
               ? 0
               : l < 0
@@ -447,10 +454,11 @@ function ProjectsOverlay({ progress }: { progress: number }) {
               : l < 0.55
               ? 1
               : Math.max(0, 1 - (l - 0.55) * 3.5);
+          const opacity = l > 0.9 ? 0 : rawOpacity;
 
           const xOffset = i % 2 === 0 ? -120 : 120;
           const yOffset = i % 3 === 0 ? -80 : i % 3 === 1 ? 60 : -30;
-          const visible = opacity > 0.01;
+          const visible = opacity > 0.01 && l <= 0.9;
 
           return (
             <div
@@ -703,14 +711,17 @@ const ServicesProjectsJourney = () => {
   const act2Project = PROJECTS[act2Index];
 
   // Fade del Canvas 3D durante Acto II (se oculta para dar espacio a las cards)
+  // El Canvas (planetas del Acto I) desaparece ANTES del giro 180°, para que
+  // la rotación ocurra sobre un espacio vacío. El pivote magenta y el flash
+  // se manejan como overlays 2D DOM para seguir siendo visibles durante el fade.
   const canvasOpacity =
-    progress < 0.56 ? 1 : progress < 0.62 ? 1 - (progress - 0.56) / 0.06 : 0;
+    progress < 0.40 ? 1 : progress < 0.46 ? 1 - (progress - 0.40) / 0.06 : 0;
 
   // Overlay labels
   const eyebrowText = isAct2
     ? "Pruebas · Atravesando el espacio"
     : isTransition
-    ? "Horizonte · Atravesando"
+    ? ""
     : "Capacidades · Cosmos 3D";
 
   const poolSize = isAct2 ? PROJECTS.length : SERVICES.length;
@@ -721,10 +732,17 @@ const ServicesProjectsJourney = () => {
     : state.activeBody.number;
   const activeTitle = isAct2 ? act2Project.title : state.activeBody.title;
 
-  // Fade overlay text during inflexion
-  const overlayOpacity = isTransition
-    ? Math.abs(((progress - ACT_I_END) / (INFLEXION_END - ACT_I_END)) - 0.5) * 2
-    : 1;
+  // Durante la transición (giro 180°) el eyebrow desaparece por completo.
+  const overlayOpacity = isTransition ? 0 : 1;
+
+  // Pivote magenta como overlay 2D DOM: glow que aparece en el centro durante
+  // la inflexión, reemplazando al planeta magenta 3D (ya eliminado del Canvas).
+  const pivotCenter = (ACT_I_END + INFLEXION_END) / 2; // 0.50
+  const pivotRange = (INFLEXION_END - ACT_I_END) / 2; // 0.08
+  const pivotD = Math.abs(progress - pivotCenter) / pivotRange;
+  const pivotVisible = pivotD < 1;
+  const pivotScale = pivotVisible ? Math.pow(1 - pivotD, 0.6) : 0;
+  const pivotOpacity = pivotVisible ? Math.pow(1 - pivotD, 1.2) : 0;
 
   return (
     <section
@@ -756,6 +774,27 @@ const ServicesProjectsJourney = () => {
 
         {/* Overlay 2D de proyectos (estilo V4) — aparece en Acto II */}
         <ProjectsOverlay progress={progress} />
+
+        {/* Pivote magenta 2D — reemplaza al planeta magenta del Canvas durante el giro */}
+        {pivotVisible && (
+          <div
+            className="pointer-events-none absolute inset-0 z-[15] flex items-center justify-center"
+            style={{ opacity: pivotOpacity }}
+          >
+            <div
+              style={{
+                width: "40vmin",
+                height: "40vmin",
+                transform: `scale(${pivotScale})`,
+                background:
+                  "radial-gradient(circle at 50% 50%, rgba(200,0,122,0.95) 0%, rgba(200,0,122,0.55) 18%, rgba(123,47,255,0.25) 45%, rgba(0,0,0,0) 72%)",
+                filter: "blur(2px)",
+                borderRadius: "50%",
+                willChange: "transform, opacity",
+              }}
+            />
+          </div>
+        )}
 
         {/* Flash blanco en la inflexión */}
         <div
