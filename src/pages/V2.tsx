@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import CustomCursor from "@/components/CustomCursor";
 import ProjectsWarp from "@/components/ProjectsWarp";
 import StarfieldParallax from "@/components/StarfieldParallax";
+import ServicesOrbit from "@/components/ServicesOrbit";
 
 function isWebGLAvailable(): boolean {
   try {
@@ -268,11 +269,14 @@ const V2 = () => {
       {/* Vacío estelar entre el hero y los proyectos */}
       <div className="relative z-0 h-[80vh] bg-black" />
 
+      {/* Servicios — órbitas cósmicas */}
+      <ServicesOrbit />
+
       {/* Projects — warp flythrough */}
       <ProjectsWarp />
 
       {/* Spacer */}
-      <div className="h-[20vh]" />
+      <div className="h-[60vh]" />
     </div>
   );
 };
