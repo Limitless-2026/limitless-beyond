@@ -19,22 +19,65 @@ const CosmicFooter = () => {
   const sectionRef = useRef<HTMLElement>(null);
   const progress = useScrollProgress(sectionRef);
 
-  // Layer windows
-  const eyebrowP = win(progress, 0.0, 0.25);
-  const ctaP = win(progress, 0.4, 0.65);
-  const wordmarkP = win(progress, 0.55, 0.85);
-  const metaP = win(progress, 0.75, 1.0);
+  // ─── Phase 0 — Explosion windows ────────────────────────────────────
+  const collapseP = win(progress, 0.0, 0.10);   // point contracts, ring closes in
+  const chargeP = win(progress, 0.10, 0.16);    // point pulses, glow grows
+  // White flash centered at 0.19 with width 0.04 (V2 formula)
+  const flashCenter = 0.19;
+  const flashWidth = 0.04;
+  const flashDist = Math.abs(progress - flashCenter);
+  const flashOpacity =
+    flashDist >= flashWidth ? 0 : Math.pow(1 - flashDist / flashWidth, 1.6);
+  const blastP = win(progress, 0.16, 0.22);     // shockwave + shards
+  const dustP = win(progress, 0.22, 0.30);      // stardust fades
+  // Black overlay that grows during collapse to "swallow" the starfield
+  const overlayP = win(progress, 0.0, 0.18);
 
-  // Question reveal — per word with stagger
-  const questionStart = 0.15;
-  const questionEnd = 0.45;
+  // ─── Content windows (rescaled to start after the blast) ────────────
+  const eyebrowP = win(progress, 0.25, 0.42);
+  const ctaP = win(progress, 0.55, 0.72);
+  const wordmarkP = win(progress, 0.62, 0.88);
+  const metaP = win(progress, 0.78, 1.0);
+
+  // Question reveal — per word with stagger (after the blast)
+  const questionStart = 0.30;
   const allWords = [...QUESTION_WORDS_TOP, ...QUESTION_WORDS_BOT];
-  const stagger = 0.05; // ~80ms equivalent across the window
+  const stagger = 0.04;
   const wordProgress = (idx: number) => {
     const a = questionStart + idx * stagger;
     const b = a + 0.18;
     return win(progress, a, b);
   };
+
+  // Mount flags — keep DOM light outside active windows
+  const explosionLive = progress < 0.32;
+  const dustLive = progress > 0.20 && progress < 0.34;
+
+  // ─── Derived styles for the explosion stage ─────────────────────────
+  // Collapse point: scale 1 → 0.4 as it contracts, then explodes to 0
+  const pointScale = explosionLive
+    ? blastP > 0
+      ? 0.4 + blastP * 6 // expands violently during blast
+      : 1 - collapseP * 0.6
+    : 0;
+  const pointGlow = 20 + chargeP * 180; // box-shadow blur radius
+  const pointOpacity = explosionLive
+    ? blastP < 1
+      ? 1
+      : 1 - dustP
+    : 0;
+
+  // Closing ring: width from 200vw → 0
+  const ringSize = `${(1 - collapseP) * 200}vw`;
+  const ringOpacity = collapseP > 0 && collapseP < 1 ? 0.35 : 0;
+
+  // Shockwave: 0 → 300vmax during blast
+  const shockSize = `${blastP * 300}vmax`;
+  const shockOpacity = blastP > 0 && blastP < 1 ? 1 - blastP : 0;
+
+  // Shard travel distance during blast
+  const shardDist = `${blastP * 60}vmax`;
+  const shardOpacity = blastP > 0 ? 1 - blastP : 0;
 
   // Helper: clip-path reveal style (vertical mask from bottom up)
   const revealStyle = (p: number, translatePx = 40): React.CSSProperties => ({
@@ -57,6 +100,12 @@ const CosmicFooter = () => {
       className="relative w-full"
       style={{ height: "180vh" }}
     >
+      <style>{`
+        @keyframes cf-twinkle {
+          0%, 100% { opacity: 0.2; transform: scale(0.8); }
+          50% { opacity: 1; transform: scale(1.2); }
+        }
+      `}</style>
       <div
         className="sticky top-0 left-0 w-full h-screen overflow-hidden bg-background"
         style={{
@@ -64,6 +113,141 @@ const CosmicFooter = () => {
           transform: "translateZ(0)",
         }}
       >
+        {/* ─── Phase 0 — Black overlay swallowing the starfield ───── */}
+        <div
+          className="absolute inset-0 bg-background pointer-events-none"
+          style={{
+            opacity: overlayP,
+            zIndex: 1,
+            transition: "opacity 200ms linear",
+          }}
+        />
+
+        {/* ─── Phase 0 — Closing ring (universe collapsing inward) ── */}
+        {explosionLive && (
+          <div
+            className="absolute left-1/2 top-1/2 pointer-events-none rounded-full"
+            style={{
+              width: ringSize,
+              height: ringSize,
+              transform: "translate(-50%, -50%)",
+              border: "1px solid hsl(var(--primary) / 0.5)",
+              opacity: ringOpacity,
+              zIndex: 2,
+              willChange: "width, height, opacity",
+            }}
+          />
+        )}
+
+        {/* ─── Phase 0 — Shockwave (violet expanding ring) ───────── */}
+        {explosionLive && blastP > 0 && (
+          <div
+            className="absolute left-1/2 top-1/2 pointer-events-none rounded-full"
+            style={{
+              width: shockSize,
+              height: shockSize,
+              transform: "translate(-50%, -50%)",
+              background:
+                "radial-gradient(circle, transparent 38%, hsl(var(--primary) / 0.45) 58%, transparent 78%)",
+              opacity: shockOpacity,
+              zIndex: 3,
+              willChange: "width, height, opacity",
+            }}
+          />
+        )}
+
+        {/* ─── Phase 0 — Shards flying out radially ──────────────── */}
+        {explosionLive && blastP > 0 && (
+          <div
+            className="absolute left-1/2 top-1/2 pointer-events-none"
+            style={{
+              width: 0,
+              height: 0,
+              zIndex: 4,
+            }}
+          >
+            {Array.from({ length: 12 }).map((_, i) => {
+              const angle = (360 / 12) * i;
+              const len = 40 + (i % 4) * 20; // 40, 60, 80, 100
+              return (
+                <span
+                  key={i}
+                  className="absolute block bg-foreground"
+                  style={{
+                    top: 0,
+                    left: 0,
+                    width: `${len}px`,
+                    height: "1px",
+                    transformOrigin: "0 50%",
+                    transform: `rotate(${angle}deg) translateX(${shardDist})`,
+                    opacity: shardOpacity,
+                    boxShadow: "0 0 8px hsl(var(--foreground) / 0.6)",
+                    willChange: "transform, opacity",
+                  }}
+                />
+              );
+            })}
+          </div>
+        )}
+
+        {/* ─── Phase 0 — Collapse / blast point ──────────────────── */}
+        {explosionLive && (
+          <div
+            className="absolute left-1/2 top-1/2 pointer-events-none rounded-full"
+            style={{
+              width: 24,
+              height: 24,
+              transform: `translate(-50%, -50%) scale(${pointScale})`,
+              background:
+                "radial-gradient(circle, hsl(var(--foreground)) 0%, hsl(var(--primary)) 45%, transparent 75%)",
+              boxShadow: `0 0 ${pointGlow}px ${pointGlow * 0.4}px hsl(var(--primary) / 0.8)`,
+              opacity: pointOpacity,
+              zIndex: 5,
+              willChange: "transform, opacity, box-shadow",
+            }}
+          />
+        )}
+
+        {/* ─── Phase 0 — White flash (full screen) ───────────────── */}
+        {flashOpacity > 0.001 && (
+          <div
+            className="absolute inset-0 pointer-events-none bg-foreground"
+            style={{
+              opacity: flashOpacity,
+              zIndex: 9,
+              mixBlendMode: "screen",
+            }}
+          />
+        )}
+
+        {/* ─── Phase 0 — Stardust (post-blast suspended particles) ─ */}
+        {dustLive && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ zIndex: 4, opacity: 1 - dustP }}
+          >
+            {Array.from({ length: 8 }).map((_, i) => {
+              const seedX = (i * 37) % 100;
+              const seedY = (i * 53) % 100;
+              return (
+                <span
+                  key={i}
+                  className="absolute block rounded-full bg-foreground"
+                  style={{
+                    left: `${30 + seedX * 0.4}%`,
+                    top: `${30 + seedY * 0.4}%`,
+                    width: 2,
+                    height: 2,
+                    boxShadow: "0 0 4px hsl(var(--foreground) / 0.8)",
+                    animation: `cf-twinkle ${1.2 + (i % 3) * 0.4}s ease-out infinite`,
+                    animationDelay: `${i * 80}ms`,
+                  }}
+                />
+              );
+            })}
+          </div>
+        )}
+
         {/* Wordmark de fondo — telón */}
         <div
           className="absolute inset-0 flex items-center justify-center pointer-events-none select-none"
