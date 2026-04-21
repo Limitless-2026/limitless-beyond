@@ -1,82 +1,64 @@
 
 
-# Plan: Destello blanco limpio sin "fragmentación"
+# Plan: Secuenciar correctamente los textos del hero antes del destello
 
 ## Problema
 
-En la captura se ve cómo, durante la transición hero → proyectos, queda un **halo violeta/blanco enorme** del núcleo de la nebulosa visible **detrás** del campo de estrellas del parallax. Como las estrellas se dibujan encima de un fondo que aún no terminó de desaparecer, parece que el destello blanco está "roto" o fragmentado por puntitos negros.
+Los tres bloques de texto del hero (`"Los límites están para romperse"`, `"No hay fronteras cuando el espacio es infinito"` y `"LIMITLESS / Bienvenido al otro lado"`) están todos posicionados con `absolute inset-0` dentro de la misma capa fixed, y sus opacidades se solapan en el rango de scroll. Por eso en la captura se ve `LIMITLESS` encima de `No hay fronteras` encima de `Bienvenido al otro lado`, todos con el destello blanco encima.
 
-Causa real: el wrapper de la nebulosa hace fade de opacidad **al mismo tiempo** que el StarfieldParallax fade-in, y como el shader sigue zoomeando hacia adentro, el núcleo brillante ocupa toda la pantalla justo en ese cruce → se ve translúcido y las estrellas lo "comen".
+Además, el destello blanco actual es solo una campana sobre `scrollProgress` (0.79 → 0.93), lo que significa que mientras el usuario scrollea, el destello aparece y se va sin darle tiempo a "respirar" al texto final.
 
-## Solución: convertir el clímax en un destello blanco real, full-screen, no scrolleable visualmente
+## Solución: secuenciar narrativa con rangos de scroll exclusivos + pausa con scroll-jacking corto durante el destello
 
-### 1. Overlay de destello blanco global (`src/pages/V2.tsx`)
+### 1. Rangos de scroll exclusivos para cada bloque (`src/pages/V2.tsx`)
 
-Agregar una nueva capa fija full-screen, **encima** del WebGL y del StarfieldParallax, **debajo** del texto y del badge:
+Reasignar las ventanas de opacidad para que NUNCA dos bloques estén visibles a la vez:
 
-```tsx
-<div className="fixed inset-0 pointer-events-none z-[8]"
-  style={{
-    background: 'white',
-    opacity: flashOpacity,   // calculado abajo
-    mixBlendMode: 'normal',
-  }}
-/>
-```
+| Bloque | Aparece | Pico (opacidad 1) | Desaparece |
+|---|---|---|---|
+| **"Los límites están para romperse"** (hero) | 0.00 | 0.00 – 0.18 | 0.30 |
+| **"No hay fronteras..."** (mid) | 0.32 | 0.42 – 0.55 | 0.65 |
+| **"Bienvenido al otro lado / LIMITLESS"** (end) | 0.68 | 0.78 – ⏸ | después del destello |
 
-`flashOpacity` se calcula con scrollProgress como una **campana corta y simétrica** centrada en el momento del cruce:
+Implementación: reemplazar las funciones actuales `heroOpacity`, `midShow`, `endOpacity` por rampas con ventanas duras que devuelvan 0 fuera de su rango:
 
 ```ts
-// pico en scrollProgress = 0.86, ancho ~0.10
-const flashCenter = 0.86;
-const flashWidth = 0.07;
-const d = Math.abs(scrollProgress - flashCenter);
-const flashOpacity = d < flashWidth ? Math.pow(1 - d / flashWidth, 1.6) : 0;
+const fadeInOut = (p: number, inStart: number, inEnd: number, outStart: number, outEnd: number) => {
+  if (p < inStart || p > outEnd) return 0;
+  if (p < inEnd) return (p - inStart) / (inEnd - inStart);
+  if (p < outStart) return 1;
+  return 1 - (p - outStart) / (outEnd - outStart);
+};
+
+const heroOpacity = fadeInOut(scrollProgress, 0, 0.05, 0.18, 0.30);
+const midOpacity  = fadeInOut(scrollProgress, 0.32, 0.42, 0.55, 0.65);
+const endOpacity  = fadeInOut(scrollProgress, 0.68, 0.78, /* outStart */ 0.95, /* outEnd */ 0.99);
 ```
 
-Resultado: en 0.79 empieza a blanquearse, llega a opacidad 1 en 0.86 (cubre TODO: nebulosa + parallax + cualquier glitch), y se va a 0 en 0.93 dejando ver el starfield ya estabilizado.
+### 2. "Pausa narrativa" para que LIMITLESS se aprecie antes del destello
 
-### 2. Cortar la nebulosa con hard switch (no fade lento)
+El bloque final (`Bienvenido al otro lado / LIMITLESS`) debe quedar **fijo en pantalla mientras el destello hace su ciclo completo**. Para lograrlo sin scroll-jacking real:
 
-En `V2.tsx`:
-- Reemplazar el `nebulaOpacity` actual (fade gradual de 0.78 a 0.95) por un esquema en dos pasos:
-  - `scrollProgress < 0.84` → opacidad 1 (nebulosa visible).
-  - `scrollProgress >= 0.84` → opacidad 0 inmediato y `display: none` para liberar la GPU y eliminar cualquier sangrado.
-- El switch ocurre **dentro** del pico del flash blanco, así el usuario nunca ve el corte: solo ve blanco.
+- **Mover el destello más adelante**: cambiar `flashCenter` de `0.86` → `0.91` y `flashWidth` de `0.07` → `0.05`. Así el destello empieza en 0.86, llega a 1 en 0.91 y termina en 0.96.
+- **Mantener `endOpacity = 1` durante todo el destello** (desde 0.78 hasta 0.95, ver tabla arriba). Esto garantiza que LIMITLESS está visible y estable durante ~17% del scroll del hero (≈ 60vh con el spacer actual de 420vh) **antes** de que el destello empiece a cubrirlo.
+- **El destello cubre la salida**: cuando el destello llega a su pico (0.91), tapa todo. Cuando se va (0.96), ya estamos en el starfield con el texto desvanecido.
 
-```tsx
-const nebulaVisible = scrollProgress < 0.84;
-// ...
-<div className="fixed inset-0"
-  style={{
-    opacity: nebulaVisible ? 1 : 0,
-    visibility: nebulaVisible ? 'visible' : 'hidden',
-    background: 'rgb(2,1,5)',
-  }}>
-```
+Resultado: el usuario hace scroll → ve aparecer LIMITLESS → tiene una porción del scroll donde LIMITLESS queda estable y legible → empieza el destello blanco → el destello cubre todo → al disiparse, ya estamos en el espacio de proyectos.
 
-### 3. Starfield solo visible después del flash
+### 3. Ajustar nebulosa y starfield al nuevo timing
 
-En `V2.tsx`, cambiar el `visible` que se pasa al `<StarfieldParallax>`:
-- Antes: `visible={scrollProgress > 0.78}` (entraba mientras la nebulosa todavía se veía).
-- Después: `visible={scrollProgress > 0.86}` (entra recién cuando el flash ya tapa todo, así no compite con la nebulosa).
-
-Mantener el fade-in de 800ms del componente para que no aparezca brusco después del flash.
+- `nebulaVisible`: pasar de `< 0.84` → `< 0.89` (la nebulosa sigue acompañando a LIMITLESS hasta que el destello la tape).
+- `<StarfieldParallax visible={scrollProgress > 0.91} />`: alineado con el pico del nuevo destello.
+- `heroLayerHidden`: pasar de `> 0.94` → `> 0.97` (la capa de texto se desmonta solo después de que el destello terminó).
+- `heroLayerOpacity`: rampa final `0.95 → 0.97` con factor `* 50` para corte rápido bajo el destello.
 
 ### 4. Detalles técnicos
 
-- **Z-index final**:
-  - `0` HeroWebGLV2 (visible solo si scrollProgress < 0.84)
-  - `1` StarfieldParallax (visible solo si scrollProgress > 0.86)
-  - `5` Overlay oscuro radial (sin cambios)
-  - `8` **Flash blanco** (nuevo, pico en 0.86)
-  - `10` Texto del hero (se oculta antes de 0.94, sin cambios)
-  - `50` Badge (sin cambios)
-- **Por qué funciona**: el flash blanco es una capa sólida, no tiene transparencias parciales en el pico → es físicamente imposible ver "estrellas comiendo el destello" porque todo está cubierto por blanco al 100% durante ~150ms de scroll.
-- **Sin tocar el shader**: no necesitamos cambiar `FragmentShaderV2.tsx` ni `uStarfield`. El crossfade interno del shader sigue funcionando para usuarios que scrollean despacio dentro del rango pre-flash.
-- **Sin tocar `ProjectsWarp.tsx`** ni `StarfieldParallax.tsx`.
+- **Sin scroll-jacking real** (`preventDefault`): la "pausa" se logra con la duración del spacer (`420vh`) y rangos de opacidad anchos. El usuario nunca pierde el control del scroll.
+- **`pointer-events`**: se mantiene `pointer-events: none` en la capa de texto.
+- **Sin tocar**: `FragmentShaderV2.tsx`, `HeroWebGLV2.tsx`, `StarfieldParallax.tsx`, `ProjectsWarp.tsx`, `CustomCursor.tsx`.
 
 ## Archivos a editar
 
-- `src/pages/V2.tsx` — agregar overlay de flash blanco z-[8], cambiar nebulaOpacity por hard switch en 0.84, ajustar visible del StarfieldParallax a > 0.86.
+- `src/pages/V2.tsx` — helper `fadeInOut`, nuevos rangos para `heroOpacity` / `midOpacity` / `endOpacity`, mover destello a 0.91, ajustar `nebulaVisible`, `heroLayerHidden` y `visible` del StarfieldParallax.
 
