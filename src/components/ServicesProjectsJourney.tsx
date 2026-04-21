@@ -74,44 +74,6 @@ const PROJECTS: Body[] = [
 // seguir visible cuando el Canvas 3D hace fade-out antes del giro.
 // Los proyectos del ACTO II se renderizan como cards 2D en ProjectsOverlay.
 
-// ============================================================
-// STARFIELD 3D (DOM) — plano ancho de estrellas que rota con rotateY
-// para simular un pan de cámara horizontal con perspectiva real.
-// ============================================================
-type Star3D = { x: number; y: number; z: number; size: number; alpha: number };
-function useStars3D(count: number, seed = 1337): Star3D[] {
-  return useMemo(() => {
-    let s = seed;
-    const rand = () => {
-      s = (s * 1664525 + 1013904223) >>> 0;
-      return s / 0xffffffff;
-    };
-    const arr: Star3D[] = [];
-    for (let i = 0; i < count; i++) {
-      // Distribución cilíndrica alrededor del observador
-      const angle = rand() * Math.PI * 2;
-      const radius = 350 + rand() * 600;
-      const isBig = rand() > 0.92;
-      arr.push({
-        x: Math.sin(angle) * radius,
-        y: (rand() * 2 - 1) * 280,
-        z: -Math.cos(angle) * radius,
-        size: isBig ? 4 + rand() * 6 : 1.5 + rand() * 1.5,
-        alpha: 0.4 + rand() * 0.55,
-      });
-    }
-    return arr;
-  }, [count, seed]);
-}
-
-// 6 paneles luminosos verticales distribuidos en cilindro 360°.
-// Sirven como referencia visual fuerte durante el giro de cámara.
-type Panel3D = { angle: number; hue: "v" | "m"; intensity: number };
-const PANELS_3D: Panel3D[] = Array.from({ length: 8 }).map((_, i) => ({
-  angle: (i / 8) * 360,
-  hue: i % 2 === 0 ? "v" : "m",
-  intensity: 0.5 + ((i * 37) % 100) / 250,
-}));
 const ACT_I_BODIES: Body[] = [...SERVICES];
 
 // Fases del viaje
