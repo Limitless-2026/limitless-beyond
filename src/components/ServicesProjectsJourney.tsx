@@ -29,6 +29,7 @@ type Body = {
   color: string;
   impact?: boolean;
   act: "I" | "II";
+  image?: string;
 };
 
 // ACTO I — Servicios. La cámara AVANZA (z pasa de 0 a -55).
@@ -46,9 +47,9 @@ const SERVICES: Body[] = [
 // La cámara llega, lo rodea y vuelve.
 const PIVOT: Body = {
   id: "pivot",
-  number: "★",
-  title: "HORIZONTE",
-  desc: "El punto donde la promesa se vuelve prueba.",
+  number: "",
+  title: "",
+  desc: "",
   position: [0, 0, -58],
   scale: 2.2,
   color: "#C8007A",
@@ -60,12 +61,12 @@ const PIVOT: Body = {
 // Los proyectos están en posiciones X/Y DISTINTAS a los servicios
 // para no solaparse. Orden del primero encontrado al volver → al final.
 const PROJECTS: Body[] = [
-  { id: "p1", number: "01", title: "NEBULA OS",       desc: "Plataforma SaaS · 2025",      position: [ 4,  3, -48], scale: 1.1, color: "#7B2FFF", act: "II" },
-  { id: "p2", number: "02", title: "AURORA COMMERCE", desc: "E-commerce · 2024",           position: [-5,  1, -40], scale: 1.3, color: "#9A5BFF", act: "II" },
-  { id: "p3", number: "03", title: "PULSAR STUDIO",   desc: "Branding & Web · 2024",       position: [ 3, -3, -32], scale: 0.9, color: "#7B2FFF", act: "II" },
-  { id: "p4", number: "04", title: "QUANTUM BANK",    desc: "Fintech · 2025",              position: [-6,  2, -24], scale: 1.0, color: "#5A1FD8", act: "II" },
-  { id: "p5", number: "05", title: "HELIOS HEALTH",   desc: "Producto digital · 2023",     position: [ 2,  3, -15], scale: 1.2, color: "#9A5BFF", act: "II" },
-  { id: "p6", number: "06", title: "COSMOS TRAVEL",   desc: "Marketplace · 2025",          position: [-3, -2,  -6], scale: 1.0, color: "#7B2FFF", act: "II" },
+  { id: "p1", number: "01", title: "NEBULA OS",       desc: "Plataforma SaaS · 2025",  position: [ 4,  3, -48], scale: 1.1, color: "#7B2FFF", act: "II", image: imgNebulaOS },
+  { id: "p2", number: "02", title: "AURORA COMMERCE", desc: "E-commerce · 2024",       position: [-5,  1, -40], scale: 1.3, color: "#9A5BFF", act: "II", image: imgAuroraCommerce },
+  { id: "p3", number: "03", title: "PULSAR STUDIO",   desc: "Branding & Web · 2024",   position: [ 3, -3, -32], scale: 0.9, color: "#7B2FFF", act: "II", image: imgPulsarStudio },
+  { id: "p4", number: "04", title: "QUANTUM BANK",    desc: "Fintech · 2025",          position: [-6,  2, -24], scale: 1.0, color: "#5A1FD8", act: "II", image: imgQuantumBank },
+  { id: "p5", number: "05", title: "HELIOS HEALTH",   desc: "Producto digital · 2023", position: [ 2,  3, -15], scale: 1.2, color: "#9A5BFF", act: "II", image: imgHeliosHealth },
+  { id: "p6", number: "06", title: "COSMOS TRAVEL",   desc: "Marketplace · 2025",      position: [-3, -2,  -6], scale: 1.0, color: "#7B2FFF", act: "II", image: imgCosmosTravel },
 ];
 
 // ACTO I bodies = servicios + pivote (los que se renderizan como planetas con shader).
