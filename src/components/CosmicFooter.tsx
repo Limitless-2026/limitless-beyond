@@ -471,60 +471,17 @@ const CosmicFooter = () => {
               transition: `opacity 600ms ${EASE}, transform 600ms ${EASE}`,
             }}
           >
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
-              <div>
-                <p className="text-[10px] tracking-[0.4em] uppercase text-foreground/40 font-light mb-3">
-                  Estudio
-                </p>
-                <ul className="space-y-2 text-xs text-foreground/70 font-light">
-                  <li>Sobre nosotros</li>
-                  <li>Manifiesto</li>
-                  <li>Equipo</li>
-                </ul>
-              </div>
-              <div>
-                <p className="text-[10px] tracking-[0.4em] uppercase text-foreground/40 font-light mb-3">
-                  Servicios
-                </p>
-                <ul className="space-y-2 text-xs text-foreground/70 font-light">
-                  <li>Diseño & Desarrollo</li>
-                  <li>Branding</li>
-                  <li>Software / SaaS</li>
-                </ul>
-              </div>
-              <div>
-                <p className="text-[10px] tracking-[0.4em] uppercase text-foreground/40 font-light mb-3">
-                  Contacto
-                </p>
-                <ul className="space-y-2 text-xs text-foreground/70 font-light">
-                  <li>
-                    <a href="mailto:hola@limitless.studio" className="hover:text-foreground transition-colors">
-                      hola@limitless.studio
-                    </a>
-                  </li>
-                  <li>Buenos Aires · AR</li>
-                </ul>
-              </div>
-              <div>
-                <p className="text-[10px] tracking-[0.4em] uppercase text-foreground/40 font-light mb-3">
-                  Redes
-                </p>
-                <ul className="space-y-2 text-xs text-foreground/70 font-light">
-                  <li>Instagram</li>
-                  <li>Behance</li>
-                  <li>LinkedIn</li>
-                </ul>
-              </div>
-            </div>
-
             {/* Línea magenta — único uso del color de impacto en la página */}
             <span
               className="block h-px mb-4"
               style={{ width: 60, background: "#C8007A" }}
             />
 
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-[10px] tracking-[0.3em] uppercase text-foreground/40 font-light">
-              <span>© 2025 Limitless · Buenos Aires</span>
+            <div
+              className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-xs tracking-[0.2em] uppercase text-foreground/40 font-light"
+              style={{ fontFamily: "DM Sans, system-ui, sans-serif", fontWeight: 300 }}
+            >
+              <span>© 2026 Limitless · Buenos Aires</span>
               <span>Los límites están para romperse</span>
             </div>
           </div>
