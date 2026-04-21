@@ -18,12 +18,12 @@ const SmoothScrollProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     const lenis = new Lenis({
-      duration: 1.6,
+      duration: 1.4,
       easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
-      wheelMultiplier: 0.7,
-      touchMultiplier: 1.5,
-      lerp: 0.075,
+      wheelMultiplier: 0.45,
+      touchMultiplier: 1.1,
+      lerp: 0.09,
     });
 
     // Expose for other hooks to subscribe to.
