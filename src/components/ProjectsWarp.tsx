@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface Project {
   id: string;
@@ -18,39 +18,11 @@ const PROJECTS: Project[] = [
   { id: "06", name: "Cosmos Travel",   category: "Marketplace",       year: "2025", image: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&q=80" },
 ];
 
-function seeded(seed: number) {
-  let s = seed;
-  return () => {
-    s = (s * 9301 + 49297) % 233280;
-    return s / 233280;
-  };
-}
-
-interface WarpStar {
-  x: number; // -50..50 vw
-  y: number; // -50..50 vh
-  depth: number; // 0..1 (offset en el loop)
-  length: number; // px
-  hueShift: number; // 0..1
-}
-
 // Cada proyecto ocupa una "ventana" de scroll en la sección.
 // El scroll relativo dentro del proyecto controla su Z (de lejos a cerca).
 const ProjectsWarp = () => {
   const sectionRef = useRef<HTMLElement>(null);
   const [progress, setProgress] = useState(0); // 0..PROJECTS.length
-  const [warpTime, setWarpTime] = useState(0); // 0..1 cíclico para estrellas siempre activas
-
-  const warpStars = useMemo<WarpStar[]>(() => {
-    const rnd = seeded(131);
-    return Array.from({ length: 100 }, () => ({
-      x: (rnd() - 0.5) * 100,
-      y: (rnd() - 0.5) * 100,
-      depth: rnd(),
-      length: 4 + rnd() * 10,
-      hueShift: rnd(),
-    }));
-  }, []);
 
   useEffect(() => {
     let raf = 0;
@@ -60,13 +32,10 @@ const ProjectsWarp = () => {
       current += (target - current) * 0.1;
       if (Math.abs(target - current) < 0.0005) current = target;
       setProgress(current);
-      // animar warp continuo independientemente del scroll
-      setWarpTime((t) => (t + 0.0015) % 1);
       if (current !== target) {
         raf = requestAnimationFrame(tick);
       } else {
-        // mantener loop suave para warpTime aún sin scroll
-        raf = requestAnimationFrame(tick);
+        raf = 0;
       }
     };
     const onScroll = () => {
@@ -79,9 +48,9 @@ const ProjectsWarp = () => {
       // Buffer: ignorar el primer 30% para dar un "vacío estelar"
       const buffered = Math.max(0, (raw - 0.3) / 0.7);
       target = buffered * PROJECTS.length;
+      if (!raf) raf = requestAnimationFrame(tick);
     };
     onScroll();
-    raf = requestAnimationFrame(tick);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       window.removeEventListener("scroll", onScroll);

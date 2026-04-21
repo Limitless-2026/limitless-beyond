@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 
 interface Star {
   x: number; // %
@@ -35,40 +35,13 @@ interface Props {
 }
 
 const StarfieldParallax = ({ visible }: Props) => {
-  const farRef = useRef<HTMLDivElement>(null);
-  const midRef = useRef<HTMLDivElement>(null);
-  const nearRef = useRef<HTMLDivElement>(null);
-
   const farStars = useMemo(() => genLayer(160, [0.6, 1.2], [0.25, 0.55], 7), []);
   const midStars = useMemo(() => genLayer(80, [1.2, 2], [0.4, 0.75], 23), []);
   const nearStars = useMemo(() => genLayer(35, [2, 3.2], [0.7, 1], 91), []);
 
-  useEffect(() => {
-    let raf = 0;
-    const onScroll = () => {
-      raf = 0;
-      const y = window.scrollY;
-      if (farRef.current) farRef.current.style.transform = `translate3d(0, ${y * -0.05}px, 0)`;
-      if (midRef.current) midRef.current.style.transform = `translate3d(0, ${y * -0.15}px, 0)`;
-      if (nearRef.current) nearRef.current.style.transform = `translate3d(0, ${y * -0.35}px, 0)`;
-    };
-    const handler = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(onScroll);
-    };
-    onScroll();
-    window.addEventListener("scroll", handler, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", handler);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
-
-  const renderLayer = (stars: Star[], ref: React.RefObject<HTMLDivElement>, withGlow = false) => (
+  const renderLayer = (stars: Star[], withGlow = false) => (
     <div
-      ref={ref}
-      className="absolute inset-0 will-change-transform"
-      style={{ height: "200vh", top: "-50vh" }}
+      className="absolute inset-0"
     >
       {stars.map((s, i) => (
         <span
@@ -103,9 +76,9 @@ const StarfieldParallax = ({ visible }: Props) => {
           50% { opacity: 0.25; }
         }
       `}</style>
-      {renderLayer(farStars, farRef)}
-      {renderLayer(midStars, midRef)}
-      {renderLayer(nearStars, nearRef, true)}
+      {renderLayer(farStars)}
+      {renderLayer(midStars)}
+      {renderLayer(nearStars, true)}
     </div>
   );
 };
