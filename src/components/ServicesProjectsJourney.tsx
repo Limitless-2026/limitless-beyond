@@ -413,12 +413,16 @@ function ProjectsOverlay({ progress }: { progress: number }) {
   const local = -0.6 + clamped * (PROJECTS.length + 0.8);
 
   // Fade de entrada del overlay entero: aparece justo al terminar la inflexión.
-  const overlayFade =
+  const enterFade =
     progress < INFLEXION_END - 0.01
       ? 0
       : progress < INFLEXION_END + 0.04
       ? (progress - (INFLEXION_END - 0.01)) / 0.05
       : 1;
+  // Fade de salida: cierre limpio a negro antes de pasar a About
+  const exitFade =
+    progress < 0.96 ? 1 : progress < 1 ? Math.max(0, 1 - (progress - 0.96) / 0.04) : 0;
+  const overlayFade = enterFade * exitFade;
 
   if (overlayFade <= 0.001) return null;
 
@@ -440,7 +444,9 @@ function ProjectsOverlay({ progress }: { progress: number }) {
           const l = local - i;
           // Z: de -2200 (muy lejos) a +200 (pasado de largo)
           const z = -2200 + l * 2400;
-          const opacity =
+          // Cutoff duro al salir (l > 0.9): evita que el borde de la card
+          // quede dibujando una línea horizontal residual.
+          const rawOpacity =
             l < -1.2
               ? 0
               : l < 0
@@ -448,10 +454,11 @@ function ProjectsOverlay({ progress }: { progress: number }) {
               : l < 0.55
               ? 1
               : Math.max(0, 1 - (l - 0.55) * 3.5);
+          const opacity = l > 0.9 ? 0 : rawOpacity;
 
           const xOffset = i % 2 === 0 ? -120 : 120;
           const yOffset = i % 3 === 0 ? -80 : i % 3 === 1 ? 60 : -30;
-          const visible = opacity > 0.01;
+          const visible = opacity > 0.01 && l <= 0.9;
 
           return (
             <div
