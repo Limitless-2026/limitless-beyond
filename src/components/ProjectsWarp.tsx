@@ -71,12 +71,20 @@ const ProjectsWarp = () => {
         style={{ perspective: "1200px", perspectiveOrigin: "50% 50%" }}
       >
         {/* Heading */}
-        <div className="absolute top-10 left-0 w-full text-center pointer-events-none z-20">
+        <div
+          className="absolute top-10 left-0 w-full text-center pointer-events-none z-20"
+          style={{
+            opacity:
+              progress < 0 ? Math.max(0, 1 + progress / 1.2) :
+              progress > PROJECTS.length - 0.4 ? Math.max(0, 1 - (progress - (PROJECTS.length - 0.4)) * 2.5) :
+              1,
+          }}
+        >
           <p className="text-[10px] md:text-xs tracking-[0.4em] uppercase text-foreground/50 font-light">
             Proyectos · Atravesando el espacio
           </p>
           <p className="text-[10px] tracking-[0.3em] uppercase text-foreground/30 font-light mt-2">
-            {String(Math.min(PROJECTS.length, Math.floor(progress) + 1)).padStart(2, "0")}
+            {String(Math.min(PROJECTS.length, Math.max(1, Math.floor(progress) + 1))).padStart(2, "0")}
             <span className="mx-2">/</span>
             {String(PROJECTS.length).padStart(2, "0")}
           </p>
