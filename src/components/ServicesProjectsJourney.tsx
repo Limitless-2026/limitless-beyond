@@ -775,6 +775,27 @@ const ServicesProjectsJourney = () => {
         {/* Overlay 2D de proyectos (estilo V4) — aparece en Acto II */}
         <ProjectsOverlay progress={progress} />
 
+        {/* Pivote magenta 2D — reemplaza al planeta magenta del Canvas durante el giro */}
+        {pivotVisible && (
+          <div
+            className="pointer-events-none absolute inset-0 z-[15] flex items-center justify-center"
+            style={{ opacity: pivotOpacity }}
+          >
+            <div
+              style={{
+                width: "40vmin",
+                height: "40vmin",
+                transform: `scale(${pivotScale})`,
+                background:
+                  "radial-gradient(circle at 50% 50%, rgba(200,0,122,0.95) 0%, rgba(200,0,122,0.55) 18%, rgba(123,47,255,0.25) 45%, rgba(0,0,0,0) 72%)",
+                filter: "blur(2px)",
+                borderRadius: "50%",
+                willChange: "transform, opacity",
+              }}
+            />
+          </div>
+        )}
+
         {/* Flash blanco en la inflexión */}
         <div
           className="pointer-events-none absolute inset-0 z-20"
