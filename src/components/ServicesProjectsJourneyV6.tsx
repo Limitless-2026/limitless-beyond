@@ -101,6 +101,7 @@ const planetFragmentShader = /* glsl */ `
   uniform float uTime;
   uniform vec3 uColor;
   uniform vec3 uDark;
+  uniform float uHover;
   varying vec3 vNormal;
   varying vec3 vPosition;
 
@@ -123,30 +124,44 @@ const planetFragmentShader = /* glsl */ `
   float fbm(vec3 p) {
     float v = 0.0;
     float a = 0.5;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
       v += a * noise(p);
-      p *= 2.0;
+      p *= 2.07;
       a *= 0.5;
     }
     return v;
   }
 
   void main() {
-    vec3 p = vPosition * 1.5 + vec3(uTime * 0.05, uTime * 0.03, 0.0);
+    vec3 p = vPosition * 1.6 + vec3(uTime * 0.05, uTime * 0.03, 0.0);
     float n = fbm(p);
-    float n2 = fbm(p * 2.0 + n);
+    float n2 = fbm(p * 2.3 + n * 1.1);
 
     vec3 col = mix(uDark, uColor, n * 0.8 + n2 * 0.4);
     col += uColor * pow(n2, 2.0) * 0.6;
 
     vec3 viewDir = normalize(cameraPosition - vPosition);
     float fresnel = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 2.0);
-    col += uColor * fresnel * 0.9;
+    col += uColor * fresnel * (0.9 + uHover * 0.6);
 
     float radial = 1.0 - length(vPosition) * 0.05;
     col *= clamp(radial, 0.6, 1.2);
 
     gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+// Atmosphere shader — fresnel halo
+const atmoFragmentShader = /* glsl */ `
+  uniform vec3 uColor;
+  uniform float uHover;
+  varying vec3 vNormal;
+  varying vec3 vPosition;
+  void main() {
+    vec3 viewDir = normalize(cameraPosition - vPosition);
+    float rim = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 3.0);
+    float a = rim * (0.55 + uHover * 0.6);
+    gl_FragColor = vec4(uColor, a);
   }
 `;
 
