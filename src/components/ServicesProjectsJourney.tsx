@@ -75,27 +75,30 @@ const PROJECTS: Body[] = [
 // Los proyectos del ACTO II se renderizan como cards 2D en ProjectsOverlay.
 
 // ============================================================
-// ROTATING STARFIELD (DOM) — para que el giro 180° SE SIENTA
-// Genera ~180 estrellas como box-shadow sobre un único div y lo rota con yaw.
+// STARFIELD 3D (DOM) — plano ancho de estrellas que rota con rotateY
+// para simular un pan de cámara horizontal con perspectiva real.
 // ============================================================
-function useStarShadow(count: number, spread: number) {
+type Star3D = { x: number; y: number; z: number; size: number; alpha: number };
+function useStars3D(count: number, seed = 1337): Star3D[] {
   return useMemo(() => {
-    const parts: string[] = [];
-    // seed pseudo-aleatorio determinista para SSR-safe
-    let s = 1337;
+    let s = seed;
     const rand = () => {
       s = (s * 1664525 + 1013904223) >>> 0;
       return s / 0xffffffff;
     };
+    const arr: Star3D[] = [];
     for (let i = 0; i < count; i++) {
-      const x = (rand() * 2 - 1) * spread;
-      const y = (rand() * 2 - 1) * spread;
-      const size = rand() < 0.85 ? 1 : 2;
-      const alpha = 0.4 + rand() * 0.6;
-      parts.push(`${x.toFixed(1)}px ${y.toFixed(1)}px 0 ${size === 2 ? "0.5px" : "0"} rgba(237,236,232,${alpha.toFixed(2)})`);
+      // Plano ancho (3x viewport) con profundidad variable
+      arr.push({
+        x: (rand() * 2 - 1) * 150, // -150vw .. 150vw
+        y: (rand() * 2 - 1) * 60,  // -60vh .. 60vh
+        z: -200 - rand() * 900,    // alejadas hacia atrás
+        size: rand() < 0.85 ? 1 : 2,
+        alpha: 0.35 + rand() * 0.6,
+      });
     }
-    return parts.join(", ");
-  }, [count, spread]);
+    return arr;
+  }, [count, seed]);
 }
 const ACT_I_BODIES: Body[] = [...SERVICES];
 
@@ -789,9 +792,8 @@ const ServicesProjectsJourney = () => {
     ? 1 - (progress - turnEnd) / 0.02
     : 1;
 
-  // Strings de box-shadow con estrellas (estable entre renders).
-  const starShadowFar = useStarShadow(120, 900);
-  const starShadowNear = useStarShadow(60, 700);
+  // Estrellas 3D para el pan de cámara con perspectiva.
+  const stars3D = useStars3D(160, 1337);
 
   return (
     <section
@@ -824,54 +826,57 @@ const ServicesProjectsJourney = () => {
         {/* Overlay 2D de proyectos (estilo V4) — aparece en Acto II */}
         <ProjectsOverlay progress={progress} />
 
-        {/* Starfield rotante DOM — hace visible el giro 180° */}
+        {/* Giro 3D de cámara: starfield plano rotando con rotateY + motion lines horizontales */}
         {turnFade > 0.001 && (
           <div
-            className="pointer-events-none absolute inset-0 z-[12] flex items-center justify-center overflow-hidden"
-            style={{ opacity: turnFade }}
+            className="pointer-events-none absolute inset-0 z-[12] overflow-hidden"
+            style={{
+              opacity: turnFade,
+              perspective: "1200px",
+              perspectiveOrigin: "50% 50%",
+            }}
           >
-            {/* Capa lejana: gira yaw */}
-            <div
-              className="absolute"
-              style={{
-                width: "1px",
-                height: "1px",
-                transform: `rotate(${turnYaw}deg)`,
-                willChange: "transform",
-                boxShadow: starShadowFar,
-              }}
-            />
-            {/* Capa cercana: gira un poco más rápido (parallax de rotación) */}
-            <div
-              className="absolute"
-              style={{
-                width: "2px",
-                height: "2px",
-                transform: `rotate(${turnYaw * 1.15}deg)`,
-                willChange: "transform",
-                boxShadow: starShadowNear,
-              }}
-            />
-            {/* Speed lines radiales (warp) — opacidad máx en el centro del giro */}
             <div
               className="absolute inset-0"
               style={{
-                opacity: Math.sin(turnT * Math.PI) * 0.75,
+                transformStyle: "preserve-3d",
+                // rotateY negativo = cámara gira a la derecha (el mundo pasa a la izquierda)
+                transform: `rotateY(${-turnYaw}deg)`,
+                willChange: "transform",
+              }}
+            >
+              {stars3D.map((st, i) => (
+                <div
+                  key={i}
+                  className="absolute top-1/2 left-1/2"
+                  style={{
+                    width: `${st.size}px`,
+                    height: `${st.size}px`,
+                    marginLeft: `${-st.size / 2}px`,
+                    marginTop: `${-st.size / 2}px`,
+                    borderRadius: "50%",
+                    background: `rgba(237,236,232,${st.alpha})`,
+                    transform: `translate3d(${st.x}vw, ${st.y}vh, ${st.z}px)`,
+                    boxShadow: st.size > 1 ? `0 0 4px rgba(237,236,232,${st.alpha * 0.8})` : undefined,
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Motion lines horizontales — refuerzan la dirección del pan */}
+            <div
+              className="absolute inset-0"
+              style={{
+                opacity: Math.sin(turnT * Math.PI) * 0.55,
                 background:
-                  "repeating-conic-gradient(from 0deg at 50% 50%, rgba(237,236,232,0) 0deg, rgba(237,236,232,0) 4deg, rgba(237,236,232,0.18) 4.4deg, rgba(237,236,232,0) 5deg)",
+                  "repeating-linear-gradient(90deg, rgba(237,236,232,0) 0px, rgba(237,236,232,0) 60px, rgba(237,236,232,0.18) 62px, rgba(237,236,232,0) 120px)",
                 mixBlendMode: "screen",
-                transform: `rotate(${-turnYaw * 0.5}deg)`,
+                transform: `translateX(${-turnEase * 40}vw)`,
                 willChange: "transform, opacity",
-              }}
-            />
-            {/* Vignette giratoria */}
-            <div
-              className="absolute inset-0"
-              style={{
-                background:
-                  "radial-gradient(ellipse 75% 65% at 50% 50%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.55) 85%, rgba(0,0,0,0.85) 100%)",
-                transform: `rotate(${turnYaw}deg) scale(1.2)`,
-                willChange: "transform",
+                maskImage:
+                  "radial-gradient(ellipse 80% 40% at 50% 50%, rgba(0,0,0,1) 30%, rgba(0,0,0,0) 80%)",
+                WebkitMaskImage:
+                  "radial-gradient(ellipse 80% 40% at 50% 50%, rgba(0,0,0,1) 30%, rgba(0,0,0,0) 80%)",
               }}
             />
           </div>
@@ -893,31 +898,6 @@ const ServicesProjectsJourney = () => {
                 filter: "blur(2px)",
                 borderRadius: "50%",
                 willChange: "transform, opacity",
-              }}
-            />
-            {/* Anillo contrarrotante exterior */}
-            <div
-              className="absolute"
-              style={{
-                width: "55vmin",
-                height: "55vmin",
-                borderRadius: "50%",
-                border: "1px solid rgba(200,0,122,0.45)",
-                transform: `scale(${pivotScale}) rotate(${-turnYaw * 1.4}deg)`,
-                boxShadow: "0 0 40px rgba(200,0,122,0.35) inset, 0 0 40px rgba(123,47,255,0.25)",
-                willChange: "transform",
-              }}
-            />
-            {/* Anillo contrarrotante interior (gira al revés) */}
-            <div
-              className="absolute"
-              style={{
-                width: "28vmin",
-                height: "28vmin",
-                borderRadius: "50%",
-                border: "1px dashed rgba(237,236,232,0.35)",
-                transform: `scale(${pivotScale}) rotate(${turnYaw * 2}deg)`,
-                willChange: "transform",
               }}
             />
           </div>
