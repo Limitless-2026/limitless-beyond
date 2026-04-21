@@ -75,27 +75,30 @@ const PROJECTS: Body[] = [
 // Los proyectos del ACTO II se renderizan como cards 2D en ProjectsOverlay.
 
 // ============================================================
-// ROTATING STARFIELD (DOM) — para que el giro 180° SE SIENTA
-// Genera ~180 estrellas como box-shadow sobre un único div y lo rota con yaw.
+// STARFIELD 3D (DOM) — plano ancho de estrellas que rota con rotateY
+// para simular un pan de cámara horizontal con perspectiva real.
 // ============================================================
-function useStarShadow(count: number, spread: number) {
+type Star3D = { x: number; y: number; z: number; size: number; alpha: number };
+function useStars3D(count: number, seed = 1337): Star3D[] {
   return useMemo(() => {
-    const parts: string[] = [];
-    // seed pseudo-aleatorio determinista para SSR-safe
-    let s = 1337;
+    let s = seed;
     const rand = () => {
       s = (s * 1664525 + 1013904223) >>> 0;
       return s / 0xffffffff;
     };
+    const arr: Star3D[] = [];
     for (let i = 0; i < count; i++) {
-      const x = (rand() * 2 - 1) * spread;
-      const y = (rand() * 2 - 1) * spread;
-      const size = rand() < 0.85 ? 1 : 2;
-      const alpha = 0.4 + rand() * 0.6;
-      parts.push(`${x.toFixed(1)}px ${y.toFixed(1)}px 0 ${size === 2 ? "0.5px" : "0"} rgba(237,236,232,${alpha.toFixed(2)})`);
+      // Plano ancho (3x viewport) con profundidad variable
+      arr.push({
+        x: (rand() * 2 - 1) * 150, // -150vw .. 150vw
+        y: (rand() * 2 - 1) * 60,  // -60vh .. 60vh
+        z: -200 - rand() * 900,    // alejadas hacia atrás
+        size: rand() < 0.85 ? 1 : 2,
+        alpha: 0.35 + rand() * 0.6,
+      });
     }
-    return parts.join(", ");
-  }, [count, spread]);
+    return arr;
+  }, [count, seed]);
 }
 const ACT_I_BODIES: Body[] = [...SERVICES];
 
