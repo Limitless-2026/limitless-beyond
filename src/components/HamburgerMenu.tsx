@@ -63,7 +63,7 @@ const HamburgerMenu = () => {
 
       <SheetContent
         side="right"
-        className="w-full sm:max-w-[560px] p-0 border-0 [&>button]:hidden overflow-hidden"
+        className="!w-full sm:!max-w-[560px] !max-w-none p-0 border-0 overflow-hidden [&>button[type='button']]:hidden"
         style={{ background: "#08080C" }}
       >
         {/* SVG grain */}
