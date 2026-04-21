@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import type { Project } from "@/data/projects";
 
 interface Props {
@@ -84,29 +85,31 @@ const ProjectStation = ({ project, index }: Props) => {
           onMouseEnter={() => setHover(true)}
           onMouseLeave={() => setHover(false)}
         >
-          <div className="relative aspect-[4/3] overflow-hidden bg-surface group cursor-pointer">
-            {/* Placeholder: gradient + name */}
-            <div
-              className="absolute inset-0"
+          <Link
+            to={`/proyectos/${project.slug}`}
+            className="relative block aspect-[4/3] overflow-hidden bg-surface group cursor-pointer"
+          >
+            {/* Real cover */}
+            <img
+              src={project.cover}
+              alt={`${project.name} — cover`}
+              loading="lazy"
+              className="absolute inset-0 w-full h-full object-cover"
               style={{
-                background:
-                  "radial-gradient(ellipse 80% 70% at 30% 30%, hsl(var(--primary) / 0.35) 0%, transparent 60%), radial-gradient(ellipse 70% 60% at 80% 80%, hsl(var(--secondary) / 0.25) 0%, transparent 60%), linear-gradient(135deg, hsl(260 12% 8%), hsl(260 14% 5%))",
-                transform: hover ? "scale(1.04)" : "scale(1)",
-                transition: "transform 800ms cubic-bezier(0.22, 1, 0.36, 1)",
+                transform: hover ? "scale(1.06)" : "scale(1)",
+                transition: "transform 900ms cubic-bezier(0.22, 1, 0.36, 1)",
               }}
             />
-            {/* Center name */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span
-                className="text-3xl md:text-5xl lg:text-6xl font-extralight tracking-[0.2em] uppercase"
-                style={{
-                  color: "hsl(var(--foreground) / 0.22)",
-                  textShadow: "0 0 30px rgba(0,0,0,0.6)",
-                }}
-              >
-                {project.name}
-              </span>
-            </div>
+            {/* Subtle dark overlay for text legibility */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background:
+                  "linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.45) 100%)",
+                opacity: hover ? 0.55 : 0.85,
+                transition: "opacity 600ms ease-out",
+              }}
+            />
 
             {/* Animated ring corners (clip-path style) */}
             <div
@@ -131,7 +134,7 @@ const ProjectStation = ({ project, index }: Props) => {
             >
               Explorar →
             </div>
-          </div>
+          </Link>
         </div>
 
         {/* Sidebar: title + meta + cta */}
@@ -186,19 +189,18 @@ const ProjectStation = ({ project, index }: Props) => {
           </p>
 
           {/* CTA */}
-          <button
-            type="button"
-            disabled
-            className="self-start group/cta flex items-center gap-3 cursor-not-allowed"
-            aria-label={`Ver caso ${project.name} (próximamente)`}
+          <Link
+            to={`/proyectos/${project.slug}`}
+            className="self-start group/cta flex items-center gap-3"
+            aria-label={`Ver caso ${project.name}`}
           >
-            <span className="text-[11px] tracking-[0.4em] uppercase text-foreground/70 font-light group-hover/cta:text-foreground transition-colors">
+            <span className="text-[11px] tracking-[0.4em] uppercase text-foreground/80 font-light group-hover/cta:text-primary transition-colors border-b border-foreground/30 group-hover/cta:border-primary pb-1">
               Ver caso
             </span>
-            <span className="text-foreground/70 group-hover/cta:translate-x-1 transition-transform">
+            <span className="text-foreground/80 group-hover/cta:text-primary group-hover/cta:translate-x-1 transition-all">
               →
             </span>
-          </button>
+          </Link>
         </div>
       </div>
     </div>

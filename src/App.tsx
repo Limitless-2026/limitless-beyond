@@ -8,8 +8,10 @@ import V2 from "./pages/V2.tsx";
 import V3 from "./pages/V3.tsx";
 import V4 from "./pages/V4.tsx";
 import V5 from "./pages/V5.tsx";
+import V6 from "./pages/V6.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import Proyectos from "./pages/Proyectos.tsx";
+import ProyectoDetalle from "./pages/ProyectoDetalle.tsx";
 import Contacto from "./pages/Contacto.tsx";
 import SmoothScrollProvider from "./components/SmoothScrollProvider";
 
@@ -28,7 +30,9 @@ const App = () => (
             <Route path="/v3" element={<V3 />} />
             <Route path="/v4" element={<V4 />} />
             <Route path="/v5" element={<V5 />} />
+            <Route path="/v6" element={<V6 />} />
             <Route path="/proyectos" element={<Proyectos />} />
+            <Route path="/proyectos/:slug" element={<ProyectoDetalle />} />
             <Route path="/contacto" element={<Contacto />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
