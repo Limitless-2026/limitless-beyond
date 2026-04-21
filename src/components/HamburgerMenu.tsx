@@ -63,9 +63,12 @@ const HamburgerMenu = () => {
 
       <SheetContent
         side="right"
-        className="w-full sm:max-w-[560px] p-0 border-0 [&>button]:hidden overflow-hidden"
+        className="hm-sheet !w-full sm:!max-w-[560px] !max-w-none p-0 border-0 overflow-hidden"
         style={{ background: "#08080C" }}
       >
+        <style>{`
+          .hm-sheet > button { display: none !important; }
+        `}</style>
         {/* SVG grain */}
         <svg
           className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.04] mix-blend-overlay"
