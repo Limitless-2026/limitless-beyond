@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 
 const items = [
-  { number: "01", label: "Inicio",    desc: "Volver al universo",    to: "/v5" },
+  { number: "01", label: "Inicio",    desc: "Volver al universo",    to: "/v6" },
   { number: "02", label: "Proyectos", desc: "Casos en órbita",       to: "/proyectos" },
   { number: "03", label: "Contacto",  desc: "Romper límites juntos", to: "/contacto" },
 ];
