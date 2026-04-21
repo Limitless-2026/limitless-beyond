@@ -45,9 +45,10 @@ const ProjectsWarp = () => {
       const total = el.offsetHeight - window.innerHeight;
       const scrolled = Math.min(Math.max(-rect.top, 0), total);
       const raw = scrolled / total; // 0..1
-      // Buffer: ignorar el primer 30% para dar un "vacío estelar"
-      const buffered = Math.max(0, (raw - 0.3) / 0.7);
-      target = buffered * PROJECTS.length;
+      // Buffer: arrancamos progress en -1.2 para que ninguna card sea visible
+      // hasta que el usuario realmente esté dentro del rango de scroll.
+      const buffered = Math.max(0, (raw - 0.12) / 0.78);
+      target = -1.2 + buffered * (PROJECTS.length + 1.2);
       if (!raf) raf = requestAnimationFrame(tick);
     };
     onScroll();
@@ -62,7 +63,7 @@ const ProjectsWarp = () => {
     <section
       ref={sectionRef}
       className="relative w-full z-10"
-      style={{ height: `${PROJECTS.length * 100 + 50}vh` }}
+      style={{ height: `${PROJECTS.length * 100}vh` }}
     >
       {/* Sticky stage — la perspectiva 3D vive aquí */}
       <div
@@ -70,12 +71,20 @@ const ProjectsWarp = () => {
         style={{ perspective: "1200px", perspectiveOrigin: "50% 50%" }}
       >
         {/* Heading */}
-        <div className="absolute top-10 left-0 w-full text-center pointer-events-none z-20">
+        <div
+          className="absolute top-10 left-0 w-full text-center pointer-events-none z-20"
+          style={{
+            opacity:
+              progress < 0 ? Math.max(0, 1 + progress / 1.2) :
+              progress > PROJECTS.length - 0.4 ? Math.max(0, 1 - (progress - (PROJECTS.length - 0.4)) * 2.5) :
+              1,
+          }}
+        >
           <p className="text-[10px] md:text-xs tracking-[0.4em] uppercase text-foreground/50 font-light">
             Proyectos · Atravesando el espacio
           </p>
           <p className="text-[10px] tracking-[0.3em] uppercase text-foreground/30 font-light mt-2">
-            {String(Math.min(PROJECTS.length, Math.floor(progress) + 1)).padStart(2, "0")}
+            {String(Math.min(PROJECTS.length, Math.max(1, Math.floor(progress) + 1))).padStart(2, "0")}
             <span className="mx-2">/</span>
             {String(PROJECTS.length).padStart(2, "0")}
           </p>
@@ -96,8 +105,8 @@ const ProjectsWarp = () => {
             const opacity =
               local < -1.2 ? 0 :
               local < 0   ? Math.max(0, 1 + local * 0.85) :
-              local < 0.7 ? 1 :
-              Math.max(0, 1 - (local - 0.7) * 3);
+              local < 0.55 ? 1 :
+              Math.max(0, 1 - (local - 0.55) * 3.5);
 
             // Pequeño desplazamiento lateral alterno para sensación de vuelo
             const xOffset = i % 2 === 0 ? -120 : 120;
@@ -170,6 +179,19 @@ const ProjectsWarp = () => {
             Scroll · Warp
           </span>
           <div className="w-px h-8 bg-gradient-to-b from-foreground/40 to-transparent" />
+        </div>
+
+        {/* Indicador de salida — aparece cuando se acaban los proyectos */}
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-30"
+          style={{
+            opacity: Math.max(0, Math.min(1, (progress - (PROJECTS.length - 0.5)) * 2)),
+          }}
+        >
+          <p className="text-[10px] md:text-xs tracking-[0.4em] uppercase text-foreground/60 font-light">
+            Continuar
+          </p>
+          <div className="mt-4 w-px h-12 bg-gradient-to-b from-foreground/40 to-transparent animate-pulse" />
         </div>
       </div>
     </section>
