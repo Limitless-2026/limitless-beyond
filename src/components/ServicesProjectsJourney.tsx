@@ -789,6 +789,10 @@ const ServicesProjectsJourney = () => {
     ? 1 - (progress - turnEnd) / 0.02
     : 1;
 
+  // Strings de box-shadow con estrellas (estable entre renders).
+  const starShadowFar = useStarShadow(120, 900);
+  const starShadowNear = useStarShadow(60, 700);
+
   return (
     <section
       ref={sectionRef}
