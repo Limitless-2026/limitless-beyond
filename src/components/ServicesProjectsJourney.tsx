@@ -704,8 +704,11 @@ const ServicesProjectsJourney = () => {
   const act2Project = PROJECTS[act2Index];
 
   // Fade del Canvas 3D durante Acto II (se oculta para dar espacio a las cards)
+  // El Canvas (planetas del Acto I) desaparece ANTES del giro 180°, para que
+  // la rotación ocurra sobre un espacio vacío. El pivote magenta y el flash
+  // se manejan como overlays 2D DOM para seguir siendo visibles durante el fade.
   const canvasOpacity =
-    progress < 0.56 ? 1 : progress < 0.62 ? 1 - (progress - 0.56) / 0.06 : 0;
+    progress < 0.40 ? 1 : progress < 0.46 ? 1 - (progress - 0.40) / 0.06 : 0;
 
   // Overlay labels
   const eyebrowText = isAct2
