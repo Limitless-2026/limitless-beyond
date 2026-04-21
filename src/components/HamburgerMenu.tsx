@@ -27,20 +27,10 @@ const HamburgerMenu = () => {
       <SheetTrigger asChild>
         <button
           aria-label={open ? "Cerrar menú" : "Abrir menú"}
-          className="fixed top-6 right-6 z-[100] group flex items-center gap-4 px-1 py-2 bg-transparent"
+          className={`fixed top-6 right-6 z-[100] group flex items-center justify-center px-1 py-2 bg-transparent transition-opacity duration-300 ${
+            open ? "opacity-0 pointer-events-none" : "opacity-100"
+          }`}
         >
-          <span
-            className="text-[10px] tracking-[0.4em] uppercase font-light text-foreground/60 group-hover:text-foreground transition-colors duration-300"
-            style={{ fontFamily: "'Arkitech', 'Inter', sans-serif" }}
-          >
-            Menú
-          </span>
-          <span
-            className="text-[10px] tracking-[0.3em] font-light text-foreground/30 group-hover:text-primary/80 transition-colors duration-300"
-            style={{ fontFamily: "'DM Sans', sans-serif" }}
-          >
-            — 03
-          </span>
           <span className="relative flex flex-col items-end justify-center w-[26px] h-[14px]">
             <span
               className={`absolute left-0 right-0 h-px bg-foreground/70 group-hover:bg-foreground transition-all duration-500 ease-out ${
@@ -63,12 +53,10 @@ const HamburgerMenu = () => {
 
       <SheetContent
         side="right"
-        className="hm-sheet !w-full sm:!max-w-[560px] !max-w-none p-0 border-0 overflow-hidden"
+        hideDefaultClose
+        className="hm-sheet !w-full sm:!max-w-[560px] !max-w-none p-0 border-0 overflow-hidden flex flex-col"
         style={{ background: "#08080C" }}
       >
-        <style>{`
-          .hm-sheet > button { display: none !important; }
-        `}</style>
         {/* SVG grain */}
         <svg
           className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.04] mix-blend-overlay"
