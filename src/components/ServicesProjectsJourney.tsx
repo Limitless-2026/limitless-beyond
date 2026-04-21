@@ -38,7 +38,7 @@ const SERVICES: Body[] = [
   { id: "web-design", number: "01", title: "DISEÑO WEB",      desc: "Sitios que respiran. Que duelen. Que ganan.",      position: [-4,  2,  -8], scale: 1.2, color: "#7B2FFF", act: "I" },
   { id: "web-dev",    number: "02", title: "DESARROLLO WEB",  desc: "Código performante. Arquitectura clara.",           position: [ 5, -1, -18], scale: 0.8, color: "#9A5BFF", act: "I" },
   { id: "mobile",     number: "03", title: "APPS MOBILE",     desc: "Productos nativos. iOS y Android sin compromisos.", position: [-3, -3, -28], scale: 1.6, color: "#5A1FD8", act: "I" },
-  { id: "saas",       number: "04", title: "SOFTWARE · SAAS", desc: "Plataformas que escalan con tu ambición.",          position: [ 6,  3, -36], scale: 1.0, color: "#7B2FFF", act: "I" },
+  { id: "saas",       number: "04", title: "SOFTWARE · SAAS", desc: "Plataformas que escalan con tu ambición.",          position: [ 3,  1.5, -36], scale: 1.0, color: "#7B2FFF", act: "I" },
   { id: "branding",   number: "05", title: "BRANDING",        desc: "Identidades que rompen la inercia visual.",         position: [-5,  1, -44], scale: 1.2, color: "#7B2FFF", act: "I" },
   { id: "ads",        number: "06", title: "PUBLICIDAD",      desc: "Campañas con dirección de arte propia.",            position: [ 3, -2, -50], scale: 0.9, color: "#9A5BFF", act: "I" },
 ];
