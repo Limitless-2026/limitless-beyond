@@ -50,37 +50,49 @@ const V2 = () => {
     };
   }, []);
 
-  // Hero text fades and stretches inward
-  const heroOpacity = Math.max(0, 1 - scrollProgress * 2.5);
+  // Helper: rampa con ventanas duras (0 fuera de rango)
+  const fadeInOut = (
+    p: number,
+    inStart: number,
+    inEnd: number,
+    outStart: number,
+    outEnd: number
+  ) => {
+    if (p < inStart || p > outEnd) return 0;
+    if (p < inEnd) return (p - inStart) / (inEnd - inStart);
+    if (p < outStart) return 1;
+    return 1 - (p - outStart) / (outEnd - outStart);
+  };
+
+  // Bloque 1 — "Los límites están para romperse"
+  const heroOpacity = fadeInOut(scrollProgress, 0, 0.05, 0.18, 0.30);
   const heroScale = 1 + scrollProgress * 0.6;
   const heroBlur = scrollProgress * 12;
-  const subOpacity = Math.max(0, 1 - scrollProgress * 4);
+  const subOpacity = heroOpacity;
 
-  // Mid-section "breakthrough" text
-  const midOpacity = Math.max(0, Math.min(1, (scrollProgress - 0.35) * 3));
-  const midFade = Math.max(0, 1 - Math.max(0, scrollProgress - 0.6) * 4);
-  const midShow = midOpacity * midFade;
+  // Bloque 2 — "No hay fronteras..."
+  const midShow = fadeInOut(scrollProgress, 0.32, 0.42, 0.55, 0.65);
 
-  // Final section — sube rápido a 1 en ~0.78 y se desvanece entre 0.85 y 0.92
-  const endIn = Math.max(0, Math.min(1, (scrollProgress - 0.62) * 6));
-  const endOut = Math.max(0, Math.min(1, 1 - Math.max(0, scrollProgress - 0.85) * 14));
-  const endOpacity = endIn * endOut;
+  // Bloque 3 — "Bienvenido al otro lado / LIMITLESS" — queda fijo durante el destello
+  const endOpacity = fadeInOut(scrollProgress, 0.68, 0.78, 0.95, 0.99);
 
-  // Capa de texto del hero — se oculta antes de que entren los proyectos
-  const heroLayerOpacity = scrollProgress < 0.85 ? 1 : Math.max(0, 1 - (scrollProgress - 0.85) * 14);
-  const heroLayerHidden = scrollProgress > 0.94;
+  // Capa de texto del hero — se desmonta recién después de que el destello terminó
+  const heroLayerOpacity =
+    scrollProgress < 0.95 ? 1 : Math.max(0, 1 - (scrollProgress - 0.95) * 50);
+  const heroLayerHidden = scrollProgress > 0.97;
 
-  // Nebulosa WebGL — hard switch dentro del pico del flash blanco
-  const nebulaVisible = scrollProgress < 0.84;
+  // Nebulosa WebGL — acompaña hasta que el destello la tape
+  const nebulaVisible = scrollProgress < 0.89;
 
-  // Flash blanco — campana centrada en 0.86 que cubre el cruce nebulosa→starfield
-  const flashCenter = 0.86;
-  const flashWidth = 0.07;
+  // Flash blanco — empieza 0.86, pico 0.91, termina 0.96
+  const flashCenter = 0.91;
+  const flashWidth = 0.05;
   const flashD = Math.abs(scrollProgress - flashCenter);
   const flashOpacity = flashD < flashWidth ? Math.pow(1 - flashD / flashWidth, 1.6) : 0;
 
   // Badge top-left — se atenúa al entrar en proyectos
-  const badgeOpacity = scrollProgress < 0.9 ? 1 : Math.max(0, 1 - (scrollProgress - 0.9) * 12);
+  const badgeOpacity =
+    scrollProgress < 0.92 ? 1 : Math.max(0, 1 - (scrollProgress - 0.92) * 15);
 
   return (
     <div className="relative bg-background text-foreground">
