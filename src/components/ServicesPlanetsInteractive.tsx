@@ -342,16 +342,26 @@ const Scene = ({
 }) => {
   const { camera, size } = useThree();
   const isMobile = size.width < 768;
+  const isTiny = size.width < 480;
 
-  // Two layouts: organic horizontal (desktop) vs compact 2x3 vertical (mobile)
-  const layout: { pos: [number, number, number]; size: number }[] = isMobile
+  // Three layouts: tiny (<480) ultra-compact, mobile (<768) 2x3, desktop organic
+  const layout: { pos: [number, number, number]; size: number }[] = isTiny
     ? [
-        { pos: [-1.6, 2.4, 0], size: 0.62 },
-        { pos: [1.6, 2.4, 0], size: 0.7 },
-        { pos: [-1.6, 0.1, 0], size: 0.55 },
-        { pos: [1.6, 0.1, 0], size: 0.68 },
-        { pos: [-1.6, -2.2, 0], size: 0.62 },
-        { pos: [1.6, -2.2, 0], size: 0.58 },
+        { pos: [-1.05, 2.3, 0], size: 0.5 },
+        { pos: [1.05, 2.3, 0], size: 0.56 },
+        { pos: [-1.05, 0.1, 0], size: 0.44 },
+        { pos: [1.05, 0.1, 0], size: 0.54 },
+        { pos: [-1.05, -2.1, 0], size: 0.5 },
+        { pos: [1.05, -2.1, 0], size: 0.46 },
+      ]
+    : isMobile
+    ? [
+        { pos: [-1.4, 2.4, 0], size: 0.58 },
+        { pos: [1.4, 2.4, 0], size: 0.66 },
+        { pos: [-1.4, 0.1, 0], size: 0.52 },
+        { pos: [1.4, 0.1, 0], size: 0.64 },
+        { pos: [-1.4, -2.2, 0], size: 0.58 },
+        { pos: [1.4, -2.2, 0], size: 0.55 },
       ]
     : [
         { pos: [-3.6, 1.4, 0], size: 0.78 },
@@ -364,12 +374,12 @@ const Scene = ({
 
   // Adjust camera distance per viewport
   useEffect(() => {
-    const targetZ = isMobile ? 9 : 7;
+    const targetZ = isTiny ? 10 : isMobile ? 9 : 7;
     if (Math.abs(camera.position.z - targetZ) > 0.01) {
       camera.position.z = targetZ;
       camera.updateProjectionMatrix();
     }
-  }, [isMobile, camera]);
+  }, [isMobile, isTiny, camera]);
 
   return (
     <>
