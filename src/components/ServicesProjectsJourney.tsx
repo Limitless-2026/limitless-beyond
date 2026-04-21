@@ -73,6 +73,30 @@ const PROJECTS: Body[] = [
 // El pivote magenta se renderiza como overlay 2D DOM (ver PivotPoint2D) para
 // seguir visible cuando el Canvas 3D hace fade-out antes del giro.
 // Los proyectos del ACTO II se renderizan como cards 2D en ProjectsOverlay.
+
+// ============================================================
+// ROTATING STARFIELD (DOM) — para que el giro 180° SE SIENTA
+// Genera ~180 estrellas como box-shadow sobre un único div y lo rota con yaw.
+// ============================================================
+function useStarShadow(count: number, spread: number) {
+  return useMemo(() => {
+    const parts: string[] = [];
+    // seed pseudo-aleatorio determinista para SSR-safe
+    let s = 1337;
+    const rand = () => {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      return s / 0xffffffff;
+    };
+    for (let i = 0; i < count; i++) {
+      const x = (rand() * 2 - 1) * spread;
+      const y = (rand() * 2 - 1) * spread;
+      const size = rand() < 0.85 ? 1 : 2;
+      const alpha = 0.4 + rand() * 0.6;
+      parts.push(`${x.toFixed(1)}px ${y.toFixed(1)}px 0 ${size === 2 ? "0.5px" : "0"} rgba(237,236,232,${alpha.toFixed(2)})`);
+    }
+    return parts.join(", ");
+  }, [count, spread]);
+}
 const ACT_I_BODIES: Body[] = [...SERVICES];
 
 // Fases del viaje
@@ -744,6 +768,31 @@ const ServicesProjectsJourney = () => {
   const pivotScale = pivotVisible ? Math.pow(1 - pivotD, 0.6) : 0;
   const pivotOpacity = pivotVisible ? Math.pow(1 - pivotD, 1.2) : 0;
 
+  // Giro visual: starfield DOM que rota 0° → 180° durante la inflexión para que
+  // el usuario SIENTA la rotación de cámara aunque el Canvas 3D esté apagado.
+  // Ventana extendida levemente antes y después para fade-in/out suave.
+  const turnStart = 0.42;
+  const turnEnd = 0.58;
+  const turnT = Math.max(0, Math.min(1, (progress - turnStart) / (turnEnd - turnStart)));
+  // Easing suave para que el giro acelere en el centro (sensación de cámara).
+  const turnEase = turnT < 0.5
+    ? 2 * turnT * turnT
+    : 1 - Math.pow(-2 * turnT + 2, 2) / 2;
+  const turnYaw = turnEase * 180; // grados
+  const turnVisible = progress > turnStart - 0.02 && progress < turnEnd + 0.02;
+  // Fade in/out del starfield rotante
+  const turnFade = !turnVisible
+    ? 0
+    : progress < turnStart
+    ? (progress - (turnStart - 0.02)) / 0.02
+    : progress > turnEnd
+    ? 1 - (progress - turnEnd) / 0.02
+    : 1;
+
+  // Strings de box-shadow con estrellas (estable entre renders).
+  const starShadowFar = useStarShadow(120, 900);
+  const starShadowNear = useStarShadow(60, 700);
+
   return (
     <section
       ref={sectionRef}
@@ -775,6 +824,59 @@ const ServicesProjectsJourney = () => {
         {/* Overlay 2D de proyectos (estilo V4) — aparece en Acto II */}
         <ProjectsOverlay progress={progress} />
 
+        {/* Starfield rotante DOM — hace visible el giro 180° */}
+        {turnFade > 0.001 && (
+          <div
+            className="pointer-events-none absolute inset-0 z-[12] flex items-center justify-center overflow-hidden"
+            style={{ opacity: turnFade }}
+          >
+            {/* Capa lejana: gira yaw */}
+            <div
+              className="absolute"
+              style={{
+                width: "1px",
+                height: "1px",
+                transform: `rotate(${turnYaw}deg)`,
+                willChange: "transform",
+                boxShadow: starShadowFar,
+              }}
+            />
+            {/* Capa cercana: gira un poco más rápido (parallax de rotación) */}
+            <div
+              className="absolute"
+              style={{
+                width: "2px",
+                height: "2px",
+                transform: `rotate(${turnYaw * 1.15}deg)`,
+                willChange: "transform",
+                boxShadow: starShadowNear,
+              }}
+            />
+            {/* Speed lines radiales (warp) — opacidad máx en el centro del giro */}
+            <div
+              className="absolute inset-0"
+              style={{
+                opacity: Math.sin(turnT * Math.PI) * 0.75,
+                background:
+                  "repeating-conic-gradient(from 0deg at 50% 50%, rgba(237,236,232,0) 0deg, rgba(237,236,232,0) 4deg, rgba(237,236,232,0.18) 4.4deg, rgba(237,236,232,0) 5deg)",
+                mixBlendMode: "screen",
+                transform: `rotate(${-turnYaw * 0.5}deg)`,
+                willChange: "transform, opacity",
+              }}
+            />
+            {/* Vignette giratoria */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(ellipse 75% 65% at 50% 50%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.55) 85%, rgba(0,0,0,0.85) 100%)",
+                transform: `rotate(${turnYaw}deg) scale(1.2)`,
+                willChange: "transform",
+              }}
+            />
+          </div>
+        )}
+
         {/* Pivote magenta 2D — reemplaza al planeta magenta del Canvas durante el giro */}
         {pivotVisible && (
           <div
@@ -791,6 +893,31 @@ const ServicesProjectsJourney = () => {
                 filter: "blur(2px)",
                 borderRadius: "50%",
                 willChange: "transform, opacity",
+              }}
+            />
+            {/* Anillo contrarrotante exterior */}
+            <div
+              className="absolute"
+              style={{
+                width: "55vmin",
+                height: "55vmin",
+                borderRadius: "50%",
+                border: "1px solid rgba(200,0,122,0.45)",
+                transform: `scale(${pivotScale}) rotate(${-turnYaw * 1.4}deg)`,
+                boxShadow: "0 0 40px rgba(200,0,122,0.35) inset, 0 0 40px rgba(123,47,255,0.25)",
+                willChange: "transform",
+              }}
+            />
+            {/* Anillo contrarrotante interior (gira al revés) */}
+            <div
+              className="absolute"
+              style={{
+                width: "28vmin",
+                height: "28vmin",
+                borderRadius: "50%",
+                border: "1px dashed rgba(237,236,232,0.35)",
+                transform: `scale(${pivotScale}) rotate(${turnYaw * 2}deg)`,
+                willChange: "transform",
               }}
             />
           </div>
