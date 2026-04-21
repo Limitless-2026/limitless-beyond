@@ -24,7 +24,7 @@ const V2 = () => {
 
   useEffect(() => {
     const onScroll = () => {
-      const max = window.innerHeight * 2.5;
+      const max = window.innerHeight * 3.5;
       setScrollProgress(Math.max(0, Math.min(1, window.scrollY / max)));
     };
     onScroll();
@@ -63,6 +63,16 @@ const V2 = () => {
 
       <CustomCursor />
 
+      {/* Overlay oscurecedor — sobre la nebulosa, debajo del texto */}
+      <div
+        className="fixed inset-0 pointer-events-none z-[5]"
+        style={{
+          background:
+            "radial-gradient(ellipse 60% 50% at 50% 50%, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 40%, rgba(0,0,0,0) 75%)",
+          opacity: 1 - scrollProgress * 0.6,
+        }}
+      />
+
       {/* Top-left v2 badge */}
       <div className="fixed top-6 left-6 z-50 pointer-events-none">
         <span className="text-[10px] tracking-[0.4em] uppercase text-foreground/50 font-light">
@@ -82,21 +92,24 @@ const V2 = () => {
             }}
           >
             <p
-              className="text-xs md:text-sm tracking-[0.4em] uppercase text-foreground/60 mb-6 font-light"
-              style={{ opacity: subOpacity }}
+              className="text-xs md:text-sm tracking-[0.4em] uppercase text-foreground/85 mb-6 font-light"
+              style={{ opacity: subOpacity, textShadow: "0 2px 20px rgba(0,0,0,0.7)" }}
             >
               Estudio · Argentina
             </p>
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-light tracking-tight leading-[0.95]">
+            <h1
+              className="text-5xl md:text-7xl lg:text-8xl font-light tracking-tight leading-[0.95] text-foreground"
+              style={{ textShadow: "0 2px 30px rgba(0,0,0,0.6)" }}
+            >
               Los límites
               <br />
-              <span className="italic font-extralight bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+              <span className="italic font-extralight bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-transparent">
                 están para romperse
               </span>
             </h1>
             <p
-              className="mt-8 text-sm md:text-base text-foreground/50 max-w-md mx-auto font-light"
-              style={{ opacity: subOpacity }}
+              className="mt-8 text-sm md:text-base text-foreground/85 max-w-md mx-auto font-light"
+              style={{ opacity: subOpacity, textShadow: "0 2px 20px rgba(0,0,0,0.7)" }}
             >
               Movete con el mouse · Scrolleá para atravesar
             </p>
