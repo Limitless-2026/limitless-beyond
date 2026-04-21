@@ -627,9 +627,11 @@ type SceneState = {
 function Scene({
   progress,
   onStateChange,
+  onSelectService,
 }: {
   progress: number;
   onStateChange: (s: SceneState) => void;
+  onSelectService: (s: ServiceMeta) => void;
 }) {
   const { camera } = useThree();
   const mouse = useMouseParallaxRef();
@@ -740,9 +742,19 @@ function Scene({
       <AmbientDust />
       <RouteLine progress={progress} />
       {/* Planetas: solo Acto I (servicios + pivote magenta) */}
-      {ACT_I_BODIES.map((b) => (
-        <Planet key={b.id} body={b} cameraPos={cameraPosVec.current} />
-      ))}
+      {ACT_I_BODIES.map((b, i) => {
+        // Map each service body to its metadata (skip the pivot which has no number)
+        const meta = b.number ? SERVICE_DATA[i] : undefined;
+        return (
+          <Planet
+            key={b.id}
+            body={b}
+            cameraPos={cameraPosVec.current}
+            serviceMeta={meta}
+            onSelect={onSelectService}
+          />
+        );
+      })}
       {ACT_I_BODIES.map((b) => (
         <BodyLabel
           key={`l-${b.id}`}
