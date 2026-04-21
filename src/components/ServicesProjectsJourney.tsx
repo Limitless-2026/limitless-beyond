@@ -38,7 +38,7 @@ const SERVICES: Body[] = [
   { id: "web-design", number: "01", title: "DISEÑO WEB",      desc: "Sitios que respiran. Que duelen. Que ganan.",      position: [-4,  2,  -8], scale: 1.2, color: "#7B2FFF", act: "I" },
   { id: "web-dev",    number: "02", title: "DESARROLLO WEB",  desc: "Código performante. Arquitectura clara.",           position: [ 5, -1, -18], scale: 0.8, color: "#9A5BFF", act: "I" },
   { id: "mobile",     number: "03", title: "APPS MOBILE",     desc: "Productos nativos. iOS y Android sin compromisos.", position: [-3, -3, -28], scale: 1.6, color: "#5A1FD8", act: "I" },
-  { id: "saas",       number: "04", title: "SOFTWARE · SAAS", desc: "Plataformas que escalan con tu ambición.",          position: [ 6,  3, -36], scale: 1.0, color: "#7B2FFF", act: "I" },
+  { id: "saas",       number: "04", title: "SOFTWARE · SAAS", desc: "Plataformas que escalan con tu ambición.",          position: [ 3,  1.5, -36], scale: 1.0, color: "#7B2FFF", act: "I" },
   { id: "branding",   number: "05", title: "BRANDING",        desc: "Identidades que rompen la inercia visual.",         position: [-5,  1, -44], scale: 1.2, color: "#7B2FFF", act: "I" },
   { id: "ads",        number: "06", title: "PUBLICIDAD",      desc: "Campañas con dirección de arte propia.",            position: [ 3, -2, -50], scale: 0.9, color: "#9A5BFF", act: "I" },
 ];
@@ -273,16 +273,15 @@ function RouteLine({ progress }: { progress: number }) {
     for (const s of SERVICES) ctrl.push(new THREE.Vector3(...s.position));
     // Pivote
     ctrl.push(new THREE.Vector3(...PIVOT.position));
-    // Vuelta: proyectos en orden (z creciente)
-    for (const p of PROJECTS) ctrl.push(new THREE.Vector3(...p.position));
-    ctrl.push(new THREE.Vector3(0, 0, 0));
     const curve = new THREE.CatmullRomCurve3(ctrl, false, "catmullrom", 0.4);
     const pts = curve.getPoints(300);
     return { points: pts, total: pts.length };
   }, []);
 
   const visiblePoints = useMemo(() => {
-    const count = Math.max(2, Math.floor(total * Math.min(1, progress * 1.02 + 0.03)));
+    // La línea se completa al llegar al pivote (INFLEXION_END).
+    const lineProgress = Math.min(1, progress / INFLEXION_END);
+    const count = Math.max(2, Math.floor(total * Math.min(1, lineProgress * 1.02 + 0.03)));
     return points.slice(0, count);
   }, [progress, points, total]);
 
@@ -398,197 +397,115 @@ function BodyLabel({
 }
 
 // ============================================================
-// PROJECT CARD 3D — reemplaza planetas en Acto II
+// PROJECTS OVERLAY 2D — Acto II (estilo V4 ProjectsWarp)
+// Las cards se deslizan en Z sobre una capa DOM absoluta,
+// reutilizando las imágenes ya existentes en src/assets/projects/.
 // ============================================================
 
-function ProjectCard({
-  body,
-  index,
-  progress,
-  cameraPos,
-  cameraYaw,
-  isActive,
-}: {
-  body: Body;
-  index: number;
-  progress: number;
-  cameraPos: THREE.Vector3;
-  cameraYaw: number;
-  isActive: boolean;
-}) {
-  const groupRef = useRef<THREE.Group>(null);
-  const floatPhase = useMemo(() => Math.random() * Math.PI * 2, []);
-  const floatFreq = useMemo(() => 0.6 + Math.random() * 0.5, []);
+// Sub-progress local al Acto II: 0..N (N = cantidad de proyectos).
+// -1 antes de entrar, +1 después de salir.
+function ProjectsOverlay({ progress }: { progress: number }) {
+  // Activar ventana: desde un poco antes de INFLEXION_END para preparar entrada.
+  // Mapeamos progress [INFLEXION_END .. 1] a local [-0.6 .. PROJECTS.length + 0.2]
+  const pl = (progress - INFLEXION_END) / (1 - INFLEXION_END);
+  const clamped = Math.max(-0.1, Math.min(1.1, pl));
+  const local = -0.6 + clamped * (PROJECTS.length + 0.8);
 
-  // Entrada escalonada: cada card entra 0.06 después de la anterior,
-  // empezando apenas comienza el Acto II.
-  const entryStart = INFLEXION_END + index * 0.015;
-  const entryEnd = entryStart + 0.06;
-  const entry = Math.max(0, Math.min(1, (progress - entryStart) / (entryEnd - entryStart)));
-  // Spring-ish easing
-  const eased = entry < 1
-    ? 1 - Math.pow(1 - entry, 3)
-    : 1;
+  // Fade de entrada del overlay entero: aparece justo al terminar la inflexión.
+  const overlayFade =
+    progress < INFLEXION_END - 0.01
+      ? 0
+      : progress < INFLEXION_END + 0.04
+      ? (progress - (INFLEXION_END - 0.01)) / 0.05
+      : 1;
 
-  // Billboard: la card mira a la cámara en cada frame
-  useFrame((state) => {
-    if (!groupRef.current) return;
-    const t = state.clock.elapsedTime;
-    // Flotación orgánica
-    const floatY = Math.sin(t * floatFreq + floatPhase) * 0.15;
-    const floatX = Math.cos(t * floatFreq * 0.7 + floatPhase) * 0.08;
-    groupRef.current.position.set(
-      body.position[0] + floatX,
-      body.position[1] + floatY,
-      body.position[2],
-    );
-    // Entry offset en Z (materializándose desde adelante)
-    const entryZOffset = (1 - eased) * 3;
-    groupRef.current.position.z += entryZOffset;
-    // Billboard
-    groupRef.current.lookAt(cameraPos);
-  });
-
-  // Opacity por distancia en dirección de la cámara
-  const dx = body.position[0] - cameraPos.x;
-  const dz = body.position[2] - cameraPos.z;
-  const fx = -Math.sin(cameraYaw);
-  const fz = -Math.cos(cameraYaw);
-  const depthInFront = dx * fx + dz * fz;
-  let distanceOpacity = 0;
-  if (depthInFront > -4 && depthInFront < 22) {
-    if (depthInFront < 3) {
-      distanceOpacity = Math.max(0, (depthInFront + 4) / 7);
-    } else {
-      distanceOpacity = Math.max(0, 1 - (depthInFront - 3) / 19);
-    }
-  }
-  const finalOpacity = eased * distanceOpacity;
-  const scale = eased * (isActive ? 1.08 : 1);
-
-  if (finalOpacity < 0.01) {
-    return null;
-  }
+  if (overlayFade <= 0.001) return null;
 
   return (
-    <group ref={groupRef}>
-      <Html
-        center
-        transform
-        distanceFactor={8}
-        occlude={false}
-        style={{
-          pointerEvents: "none",
-          opacity: finalOpacity,
-          transition: "opacity 200ms linear",
-        }}
+    <div
+      className="absolute inset-0 pointer-events-none"
+      style={{
+        opacity: overlayFade,
+        transition: "opacity 180ms linear",
+        perspective: "1200px",
+        perspectiveOrigin: "50% 50%",
+      }}
+    >
+      <div
+        className="relative w-full h-full"
+        style={{ transformStyle: "preserve-3d" }}
       >
-        <div
-          style={{
-            width: "380px",
-            height: "280px",
-            transform: `scale(${scale})`,
-            transition: "transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1)",
-            background: "rgba(8, 8, 12, 0.85)",
-            border: isActive
-              ? "1px solid rgba(123, 47, 255, 0.75)"
-              : "1px solid rgba(123, 47, 255, 0.28)",
-            boxShadow: isActive
-              ? "0 0 80px -10px rgba(123, 47, 255, 0.7)"
-              : "0 0 56px -14px rgba(123, 47, 255, 0.4)",
-            display: "flex",
-            flexDirection: "column",
-            color: "#EDECE8",
-            fontFamily: "'DM Sans', sans-serif",
-            overflow: "hidden",
-          }}
-        >
-          {/* Imagen del proyecto */}
-          <div
-            style={{
-              width: "100%",
-              height: "210px",
-              overflow: "hidden",
-              position: "relative",
-              flexShrink: 0,
-            }}
-          >
-            <img
-              src={body.image}
-              alt={body.title}
-              draggable={false}
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                display: "block",
-                filter: isActive ? "saturate(1.1)" : "saturate(0.9)",
-                transition: "filter 300ms linear",
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                background:
-                  "linear-gradient(180deg, rgba(8,8,12,0) 55%, rgba(8,8,12,0.85) 100%)",
-              }}
-            />
-            <span
-              style={{
-                position: "absolute",
-                top: "12px",
-                left: "14px",
-                fontSize: "10px",
-                letterSpacing: "0.4em",
-                textTransform: "uppercase",
-                opacity: 0.75,
-                fontWeight: 300,
-                color: "#EDECE8",
-              }}
-            >
-              ◆ {body.number}
-            </span>
-          </div>
+        {PROJECTS.map((project, i) => {
+          const l = local - i;
+          // Z: de -2200 (muy lejos) a +200 (pasado de largo)
+          const z = -2200 + l * 2400;
+          const opacity =
+            l < -1.2
+              ? 0
+              : l < 0
+              ? Math.max(0, 1 + l * 0.85)
+              : l < 0.55
+              ? 1
+              : Math.max(0, 1 - (l - 0.55) * 3.5);
 
-          {/* Caption mínimo */}
-          <div
-            style={{
-              flex: 1,
-              padding: "14px 18px",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              gap: "4px",
-            }}
-          >
+          const xOffset = i % 2 === 0 ? -120 : 120;
+          const yOffset = i % 3 === 0 ? -80 : i % 3 === 1 ? 60 : -30;
+          const visible = opacity > 0.01;
+
+          return (
             <div
+              key={project.id}
+              className="absolute top-1/2 left-1/2"
               style={{
-                fontFamily: "'Arkitech', 'Inter', sans-serif",
-                fontSize: "18px",
-                letterSpacing: "0.14em",
-                fontWeight: 300,
-                lineHeight: 1,
-                textTransform: "uppercase",
+                width: "min(560px, 70vw)",
+                height: "min(360px, 45vh)",
+                marginLeft: "calc(min(560px, 70vw) / -2)",
+                marginTop: "calc(min(360px, 45vh) / -2)",
+                transform: `translate3d(${xOffset}px, ${yOffset}px, ${z}px)`,
+                opacity,
+                visibility: visible ? "visible" : "hidden",
+                transformStyle: "preserve-3d",
+                willChange: "transform, opacity",
               }}
             >
-              {body.title}
+              <div
+                className="relative w-full h-full rounded-lg overflow-hidden border border-foreground/10"
+                style={{
+                  background: "rgba(8, 6, 14, 0.85)",
+                  boxShadow: `0 0 60px hsl(var(--primary) / ${0.15 + Math.max(0, 1 - Math.abs(l)) * 0.25}), inset 0 0 0 1px hsla(0,0%,100%,0.04)`,
+                }}
+              >
+                <img
+                  src={project.image}
+                  alt={project.title}
+                  loading="lazy"
+                  draggable={false}
+                  className="absolute inset-0 w-full h-full object-cover opacity-70"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
+                <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8">
+                  <div className="flex items-baseline gap-3 mb-2">
+                    <span className="text-[10px] tracking-[0.3em] text-primary/80 font-light">
+                      {project.number}
+                    </span>
+                    <span className="text-[10px] tracking-[0.3em] uppercase text-foreground/50 font-light">
+                      {project.desc}
+                    </span>
+                  </div>
+                  <h3 className="text-2xl md:text-4xl font-light tracking-tight text-foreground">
+                    {project.title}
+                  </h3>
+                </div>
+                <div className="absolute top-3 left-3 w-4 h-4 border-l border-t border-primary/40" />
+                <div className="absolute top-3 right-3 w-4 h-4 border-r border-t border-primary/40" />
+                <div className="absolute bottom-3 left-3 w-4 h-4 border-l border-b border-primary/40" />
+                <div className="absolute bottom-3 right-3 w-4 h-4 border-r border-b border-primary/40" />
+              </div>
             </div>
-            <div
-              style={{
-                fontSize: "11px",
-                letterSpacing: "0.18em",
-                opacity: 0.55,
-                fontWeight: 300,
-                textTransform: "uppercase",
-              }}
-            >
-              {body.desc}
-            </div>
-          </div>
-        </div>
-      </Html>
-    </group>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -735,18 +652,6 @@ function Scene({
           cameraYaw={cameraYawRef.current}
         />
       ))}
-      {/* Cards 3D: Acto II (proyectos) */}
-      {PROJECTS.map((b, i) => (
-        <ProjectCard
-          key={`c-${b.id}`}
-          body={b}
-          index={i}
-          progress={progress}
-          cameraPos={cameraPosVec.current}
-          cameraYaw={cameraYawRef.current}
-          isActive={lastActiveIdRef.current === b.id}
-        />
-      ))}
     </>
   );
 }
@@ -785,19 +690,36 @@ const ServicesProjectsJourney = () => {
   const isAct2 = state.act === "II";
   const isTransition = state.act === "transition";
 
+  // Índice del proyecto "activo" según el progreso del overlay 2D
+  const act2Pl = Math.max(
+    -0.1,
+    Math.min(1.1, (progress - INFLEXION_END) / (1 - INFLEXION_END)),
+  );
+  const act2Local = -0.6 + act2Pl * (PROJECTS.length + 0.8);
+  const act2Index = Math.max(
+    0,
+    Math.min(PROJECTS.length - 1, Math.round(act2Local)),
+  );
+  const act2Project = PROJECTS[act2Index];
+
+  // Fade del Canvas 3D durante Acto II (se oculta para dar espacio a las cards)
+  const canvasOpacity =
+    progress < 0.56 ? 1 : progress < 0.62 ? 1 - (progress - 0.56) / 0.06 : 0;
+
   // Overlay labels
   const eyebrowText = isAct2
-    ? "Pruebas · El viaje de vuelta"
+    ? "Pruebas · Atravesando el espacio"
     : isTransition
     ? "Horizonte · Atravesando"
     : "Capacidades · Cosmos 3D";
 
-  const pool = isAct2 ? PROJECTS : SERVICES;
-  const poolSize = pool.length;
-  const activeNumber = state.activeBody.impact
+  const poolSize = isAct2 ? PROJECTS.length : SERVICES.length;
+  const activeNumber = isAct2
+    ? act2Project.number
+    : state.activeBody.impact
     ? "★"
     : state.activeBody.number;
-  const activeTitle = state.activeBody.title;
+  const activeTitle = isAct2 ? act2Project.title : state.activeBody.title;
 
   // Fade overlay text during inflexion
   const overlayOpacity = isTransition
@@ -814,14 +736,26 @@ const ServicesProjectsJourney = () => {
         className="sticky top-0 w-full h-screen overflow-hidden"
         style={{ transform: "translateZ(0)" }}
       >
-        <Canvas
-          dpr={[1, 1.5]}
-          gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
-          camera={{ fov: 55, near: 0.1, far: 200, position: [0, 0, 0] }}
-          style={{ background: "transparent" }}
+        <div
+          className="absolute inset-0"
+          style={{
+            opacity: canvasOpacity,
+            transition: "opacity 200ms linear",
+            visibility: canvasOpacity <= 0.001 ? "hidden" : "visible",
+          }}
         >
-          <Scene progress={progress} onStateChange={setState} />
-        </Canvas>
+          <Canvas
+            dpr={[1, 1.5]}
+            gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+            camera={{ fov: 55, near: 0.1, far: 200, position: [0, 0, 0] }}
+            style={{ background: "transparent" }}
+          >
+            <Scene progress={progress} onStateChange={setState} />
+          </Canvas>
+        </div>
+
+        {/* Overlay 2D de proyectos (estilo V4) — aparece en Acto II */}
+        <ProjectsOverlay progress={progress} />
 
         {/* Flash blanco en la inflexión */}
         <div
