@@ -840,6 +840,38 @@ const ServicesProjectsJourneyV6 = () => {
   });
   const [webgl] = useState(() => isWebGLAvailable());
   const [selectedService, setSelectedService] = useState<ServiceMeta | null>(null);
+  const pointerRef = useRef({ x: -9999, y: -9999, active: false });
+
+  // Track pointer in section-local coordinates for magnetic effect
+  useEffect(() => {
+    const handle = (e: PointerEvent) => {
+      const el = sectionRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const inside =
+        e.clientY >= 0 &&
+        e.clientY <= window.innerHeight &&
+        rect.top <= 0 &&
+        rect.bottom >= window.innerHeight;
+      if (inside) {
+        pointerRef.current.x = e.clientX - rect.left;
+        // Section is sticky-pinned, so visible viewport top = max(0, -rect.top)
+        pointerRef.current.y = e.clientY - Math.max(0, rect.top);
+        pointerRef.current.active = true;
+      } else {
+        pointerRef.current.active = false;
+      }
+    };
+    const onLeave = () => {
+      pointerRef.current.active = false;
+    };
+    window.addEventListener("pointermove", handle);
+    window.addEventListener("pointerleave", onLeave);
+    return () => {
+      window.removeEventListener("pointermove", handle);
+      window.removeEventListener("pointerleave", onLeave);
+    };
+  }, []);
 
   if (!webgl) {
     return (
@@ -926,6 +958,7 @@ const ServicesProjectsJourneyV6 = () => {
               progress={progress}
               onStateChange={setState}
               onSelectService={setSelectedService}
+              pointerRef={pointerRef}
             />
           </Canvas>
         </div>
