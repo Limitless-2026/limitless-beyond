@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface Project {
   id: string;
@@ -18,13 +18,57 @@ const PROJECTS: Project[] = [
   { id: "06", name: "Cosmos Travel",   category: "Marketplace",       year: "2025", image: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&q=80" },
 ];
 
+function seeded(seed: number) {
+  let s = seed;
+  return () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+}
+
+interface WarpStar {
+  x: number; // -50..50 vw
+  y: number; // -50..50 vh
+  depth: number; // 0..1 (offset en el loop)
+  length: number; // px
+  hueShift: number; // 0..1
+}
+
 // Cada proyecto ocupa una "ventana" de scroll en la sección.
 // El scroll relativo dentro del proyecto controla su Z (de lejos a cerca).
 const ProjectsWarp = () => {
   const sectionRef = useRef<HTMLElement>(null);
   const [progress, setProgress] = useState(0); // 0..PROJECTS.length
+  const [warpTime, setWarpTime] = useState(0); // 0..1 cíclico para estrellas siempre activas
+
+  const warpStars = useMemo<WarpStar[]>(() => {
+    const rnd = seeded(131);
+    return Array.from({ length: 100 }, () => ({
+      x: (rnd() - 0.5) * 100,
+      y: (rnd() - 0.5) * 100,
+      depth: rnd(),
+      length: 4 + rnd() * 10,
+      hueShift: rnd(),
+    }));
+  }, []);
 
   useEffect(() => {
+    let raf = 0;
+    let target = 0;
+    let current = 0;
+    const tick = () => {
+      current += (target - current) * 0.1;
+      if (Math.abs(target - current) < 0.0005) current = target;
+      setProgress(current);
+      // animar warp continuo independientemente del scroll
+      setWarpTime((t) => (t + 0.0015) % 1);
+      if (current !== target) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        // mantener loop suave para warpTime aún sin scroll
+        raf = requestAnimationFrame(tick);
+      }
+    };
     const onScroll = () => {
       const el = sectionRef.current;
       if (!el) return;
@@ -34,12 +78,15 @@ const ProjectsWarp = () => {
       const raw = scrolled / total; // 0..1
       // Buffer: ignorar el primer 30% para dar un "vacío estelar"
       const buffered = Math.max(0, (raw - 0.3) / 0.7);
-      const p = buffered * PROJECTS.length;
-      setProgress(p);
+      target = buffered * PROJECTS.length;
     };
     onScroll();
+    raf = requestAnimationFrame(tick);
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, []);
 
   return (
@@ -53,6 +100,45 @@ const ProjectsWarp = () => {
         className="sticky top-0 left-0 w-full h-screen overflow-hidden flex items-center justify-center"
         style={{ perspective: "1200px", perspectiveOrigin: "50% 50%" }}
       >
+        {/* Warp stars — siempre viajando, dan vida al fondo */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{ perspective: "1200px", transformStyle: "preserve-3d" }}
+        >
+          <div
+            className="absolute top-1/2 left-1/2 w-0 h-0"
+            style={{ transformStyle: "preserve-3d" }}
+          >
+            {warpStars.map((s, i) => {
+              // loop continuo de z: cada estrella tiene su offset depth
+              const cycle = (warpTime + s.depth + progress * 0.05) % 1;
+              const z = -2400 + cycle * 2600; // -2400..200
+              const opacity =
+                cycle < 0.05 ? cycle / 0.05 :
+                cycle > 0.92 ? Math.max(0, (1 - cycle) / 0.08) :
+                1;
+              return (
+                <span
+                  key={i}
+                  className="absolute block"
+                  style={{
+                    left: `${s.x}vw`,
+                    top: `${s.y}vh`,
+                    width: "1.5px",
+                    height: `${s.length}px`,
+                    background: s.hueShift > 0.5
+                      ? "linear-gradient(to bottom, hsl(var(--primary) / 0.9), transparent)"
+                      : "linear-gradient(to bottom, hsl(var(--foreground) / 0.85), transparent)",
+                    transform: `translate3d(0, 0, ${z}px)`,
+                    opacity: opacity * 0.85,
+                    willChange: "transform, opacity",
+                  }}
+                />
+              );
+            })}
+          </div>
+        </div>
+
         {/* Heading */}
         <div className="absolute top-10 left-0 w-full text-center pointer-events-none z-20">
           <p className="text-[10px] md:text-xs tracking-[0.4em] uppercase text-foreground/50 font-light">
