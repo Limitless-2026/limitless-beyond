@@ -197,11 +197,10 @@ void main() {
   vec2 mousePull = -toMouse * exp(-dM * 2.2) * 0.18 * (1.0 - scroll * 0.5);
 
   // ── DIVE INTO THE STAR ──
-  // zoomIn > 1 = nos acercamos. Dividir por zoomIn hace que todo crezca y nos
-  // hundamos hacia el centro (atravesamos la nebulosa, no nos alejamos de ella).
+  // Para acercarnos de verdad, sampleamos una zona cada vez más chica del shader.
   float zoomIn = 1.0 + scroll * 14.0;       // 1 → 15 (penetración profunda)
   vec2 center = vec2(0.0, 0.04 - scroll * 0.04) + parallax * 0.5 + mousePull * 0.4;
-  vec2 p = (st - center) * zoomIn;
+  vec2 p = (st - center) / zoomIn;
 
   float r = length(p);
 
@@ -215,14 +214,14 @@ void main() {
   vec3 cWhiteHot = vec3(0.96, 0.94, 1.00);      // blanco hueso frío
 
   // ── NEBULA SCENE ──
-  vec2 stZoom = (st - center) * zoomIn;
+  vec2 stZoom = (st - center) / zoomIn;
 
   float bgClouds = fbm(stZoom * 1.0 + mousePull * 1.5 + vec2(t * 0.004, t * 0.003));
   vec3 nebula = cVoid + cDeepBlue * bgClouds * 0.7;
   nebula += cIndigo * (0.10 + scroll * 0.3);
   nebula += warpStars(stZoom * 0.5 - parallax * 0.3, t, scroll, reveal);
 
-  float zoomNeb = zoomIn * 0.7 + 0.3;
+  float zoomNeb = 1.0 / max(zoomIn * 0.7, 0.08);
   float aberr = 0.012 + scroll * 0.04;
   vec2 dir = normalize(p + 0.0001);
   vec2 pR = p - dir * aberr * 0.5;
@@ -235,7 +234,7 @@ void main() {
   vec3 nebOuter = mix(cIndigo, cViolet, smoothstep(0.0, 0.5, densG));
   vec3 nebMid   = mix(cViolet, cMagenta, smoothstep(0.3, 0.8, densG));
   vec3 nebHot   = mix(cMagenta, cWhiteHot, smoothstep(0.7, 1.0, densG));
-  float radialT = smoothstep(0.05, 0.7, r / max(zoomIn, 1.0) + 0.05);
+  float radialT = smoothstep(0.05, 0.7, r * zoomIn + 0.05);
   vec3 nebColor = mix(nebHot, nebMid, radialT);
   nebColor = mix(nebColor, nebOuter, smoothstep(0.4, 0.9, radialT));
 
