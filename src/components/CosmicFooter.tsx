@@ -19,37 +19,37 @@ const CosmicFooter = () => {
   const sectionRef = useRef<HTMLElement>(null);
   const progress = useScrollProgress(sectionRef);
 
-  // ─── Phase 0 — Explosion windows (more paced, nebula-like) ──────────
-  const collapseP = win(progress, 0.0, 0.18);   // slow inward collapse
-  const chargeP = win(progress, 0.18, 0.28);    // prolonged pulse / charge
+  // ─── Phase 0 — Explosion windows (paced, nebula-like, longer) ───────
+  const collapseP = win(progress, 0.0, 0.20);   // slow inward collapse
+  const chargeP = win(progress, 0.20, 0.32);    // prolonged pulse / charge
   // Two-stage flash:
-  // Pre-flash (soft, peak 0.6) centered at 0.30, width 0.05.
-  const preFlashCenter = 0.30;
-  const preFlashWidth = 0.05;
+  // Pre-flash (soft, peak 0.6) centered at 0.345, width 0.025 (covers 0.32→0.37).
+  const preFlashCenter = 0.345;
+  const preFlashWidth = 0.025;
   const preFlashDist = Math.abs(progress - preFlashCenter);
   const preFlashOpacity =
     preFlashDist >= preFlashWidth
       ? 0
       : Math.pow(1 - preFlashDist / preFlashWidth, 1.8) * 0.6;
-  // Main flash (softer fall-off, wider) centered at 0.33, width 0.06.
-  const flashCenter = 0.33;
-  const flashWidth = 0.06;
+  // Main flash (softer fall-off, wider) centered at 0.39, width 0.09.
+  const flashCenter = 0.39;
+  const flashWidth = 0.09;
   const flashDist = Math.abs(progress - flashCenter);
   const flashOpacity =
-    flashDist >= flashWidth ? 0 : Math.pow(1 - flashDist / flashWidth, 2.2);
-  const blastP = win(progress, 0.28, 0.36);     // shockwave + shards
-  const dustP = win(progress, 0.36, 0.48);      // stardust + nebula clouds
+    flashDist >= flashWidth ? 0 : Math.pow(1 - flashDist / flashWidth, 2.4);
+  const blastP = win(progress, 0.32, 0.44);     // shockwave + shards (longer)
+  const dustP = win(progress, 0.44, 0.58);      // stardust + nebula clouds (longer)
   // Black overlay that grows during collapse to "swallow" the starfield
-  const overlayP = win(progress, 0.0, 0.28);
+  const overlayP = win(progress, 0.0, 0.32);
 
   // ─── Content windows (rescaled — start after the dust settles) ──────
-  const eyebrowP = win(progress, 0.45, 0.60);
-  const ctaP = win(progress, 0.68, 0.82);
-  const wordmarkP = win(progress, 0.72, 0.94);
-  const metaP = win(progress, 0.84, 1.0);
+  const eyebrowP = win(progress, 0.55, 0.68);
+  const ctaP = win(progress, 0.74, 0.86);
+  const wordmarkP = win(progress, 0.76, 0.94);
+  const metaP = win(progress, 0.86, 1.0);
 
   // Question reveal — per word with stagger (after the blast)
-  const questionStart = 0.48;
+  const questionStart = 0.58;
   const stagger = 0.05;
   const wordProgress = (idx: number) => {
     const a = questionStart + idx * stagger;
@@ -58,8 +58,8 @@ const CosmicFooter = () => {
   };
 
   // Mount flags — keep DOM light outside active windows
-  const explosionLive = progress < 0.40;
-  const dustLive = progress > 0.34 && progress < 0.50;
+  const explosionLive = progress < 0.48;
+  const dustLive = progress > 0.42 && progress < 0.60;
 
   // ─── Derived styles for the explosion stage ─────────────────────────
   // Collapse point: scale 1 → 0.4, breathing pulse during charge, then expands
