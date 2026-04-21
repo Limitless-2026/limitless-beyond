@@ -1,72 +1,63 @@
 
 
-# Plan: Acto II como cards planas estilo V4 + reposicionar Software/SaaS
+# Plan: Planetas desaparecen ANTES del giro — el Acto II es solo cards
 
-Dos cambios quirúrgicos en `ServicesProjectsJourney.tsx`, sin tocar nada más.
+Entendido el matiz: no querés ver planetas durante la rotación. El giro 180° debe ocurrir sobre un espacio ya vacío → cuando la cámara termine de rotar, solo aparecen las cards. Los mundos son exclusivos del Acto I.
 
 ---
 
-## 1. Acto II — Reemplazar planetas 3D por cards planas que desplazan (estilo V4)
+## Cambio único en `ServicesProjectsJourney.tsx`
 
-**El problema actual**: los planetas del Acto I siguen visibles al fondo durante el Acto II, y las cards `<Html transform>` compiten con ellos. La imagen que mostraste lo confirma: planetas violetas atrás, card "PUBLICIDAD" cortada adelante.
+### Fade del Canvas 3D adelantado al inicio del giro
 
-**La solución**: durante el Acto II el Canvas 3D se oculta por completo y aparece un **overlay 2D con cards deslizándose**, exactamente como hace `ProjectsWarp` en V4 — pero integrado en la misma sección sticky del viaje (sin agregar scroll extra).
+**Rangos nuevos**:
+```text
+progress < 0.40  → Canvas opacity 1   (Acto I: serpenteo entre planetas)
+0.40 → 0.46      → Canvas fade 1 → 0  (planetas desaparecen ANTES de girar)
+0.46 → 0.58      → Canvas opacity 0   (giro + flash sobre vacío limpio)
+progress > 0.58  → Canvas opacity 0   (Acto II: solo cards 2D)
+```
 
-### Mecánica
+**Narrativa resultante**:
+1. Serpenteo por los 6 servicios (planetas visibles).
+2. Al llegar al último servicio, los planetas empiezan a desvanecerse rápido.
+3. Canvas completamente invisible → el giro 180° ocurre sobre el starfield global solo.
+4. Flash blanco marca el momento de inflexión.
+5. Aparecen las cards 2D deslizándose.
 
-- Un nuevo componente interno `ProjectsOverlay` se renderiza **fuera del Canvas**, como capa DOM absoluta sobre el sticky stage.
-- Se activa cuando `progress >= INFLEXION_END` (0.58).
-- Mapea el sub-progress local (0.58 → 1.00) a un valor `0 → 6` que avanza por las 6 cards.
-- Cada card se mueve en Z (translateZ de -2200 a +200) con perspective 1200px — idéntico a V4 `ProjectsWarp`.
-- Opacidad escalonada: card visible solo cuando está en su "ventana" de progress.
-- Imágenes: reutilizo las 6 que ya están en `src/assets/projects/`.
+El pivote magenta y el flash siguen dentro del Canvas pero se los reemplaza con overlays 2D DOM para que sigan siendo visibles durante el giro:
 
-### Canvas 3D durante Acto II
+- **Flash blanco**: ya existe como overlay 2D (`flashOpacity` DOM) → se mantiene.
+- **Pivote magenta**: se elimina del Canvas 3D. En su lugar, un **punto magenta 2D centrado** (`div` con glow radial) aparece entre progress 0.42 → 0.56, escala 0 → grande → 0. Cumple la misma función narrativa ("atravesás el horizonte") sin necesidad del Canvas.
 
-- Durante Acto II el Canvas entero fade-outea a opacity 0 entre progress 0.56 → 0.62. Así los planetas del Acto I **desaparecen** y las cards del Acto II quedan solas sobre el starfield global.
-- El pivote magenta y su flash siguen apareciendo dentro de la ventana de inflexión (sin conflicto, el fade empieza recién al final de la rotación).
-- Las 6 `ProjectCard` 3D actuales (`<Html transform>`) se **eliminan** del componente. Se van también sus constantes `PROJECTS` como cuerpos en el Canvas (quedan solo como data para el overlay 2D).
-- La `RouteLine` también corta en el pivote (ya no conecta los proyectos 3D). Se ajusta para que termine en el pivote y no en `(0,0,0)` de retorno.
+### Eyebrow durante el giro
 
-### Estructura final del componente
+Durante la fase `transition` (0.42 → 0.58) el eyebrow hace fade-out total a opacity 0. Vuelve recién en Acto II con el texto de proyectos.
+
+### Cierre limpio del Acto II
+
+- Cards con `l > 0.9` → `visibility: hidden` + opacity dura a 0 (sin cola de borde residual).
+- `progress > 0.96` → `ProjectsOverlay` entero fade-out a 0 en 4% → cierre negro limpio hacia About.
+
+---
+
+## Estructura final
 
 ```text
 <section sticky 900vh>
-  <Canvas 3D>                        ← fade out durante Acto II
-    - SERVICES (planetas) ✓
-    - PIVOT (planeta magenta) ✓
-    - RouteLine (solo ida) ✓
-    - Labels de servicios ✓
-    - Starfield ambient ✓
+  <Canvas 3D>                    ← opacity: 1 → 0 entre 0.40 y 0.46
+    - Servicios (planetas)
+    - RouteLine hasta el pivote
+    - Labels de servicios
   </Canvas>
 
-  <ProjectsOverlay 2D>               ← nuevo, aparece en Acto II
-    - 6 cards con translate3d Z       ← idéntico a ProjectsWarp V4
-    - imágenes, título, categoría, año
-    - esquinas decorativas HUD
-  </ProjectsOverlay>
+  <PivotPoint2D />               ← nuevo, div magenta centrado, solo en transición
+  <FlashOverlay2D />             ← ya existe, se mantiene
+  <ProjectsOverlay2D />          ← cards deslizando, Acto II
 
-  <2D overlay existente>             ← sin cambios
-    - eyebrow "Capacidades" / "Pruebas"
-    - contador 01/06
-    - barra de progreso
+  <EyebrowOverlay />             ← fade 0 durante transición
 </section>
 ```
-
-### Eyebrow y contador en Acto II
-
-- Se mantienen donde están, pero el número ahora se calcula sobre el avance del overlay 2D (qué card está en la ventana central), no sobre la cámara 3D.
-- Texto del eyebrow en Acto II: `"Pruebas · Atravesando el espacio"` (matcheando el lenguaje de V4).
-
----
-
-## 2. Acto I — Software / SaaS más centrado
-
-Posición actual: `[6, 3, -36]` — queda muy a la derecha y muy arriba, fuera del viewport en resoluciones medianas, y el label se recorta.
-
-Nueva posición: `[3, 1.5, -36]` — más hacia el centro, altura más cercana al eje de la cámara. La cámara pasa más cerca → el texto se lee completo.
-
-El resto de los servicios quedan exactamente como están.
 
 ---
 
@@ -74,15 +65,14 @@ El resto de los servicios quedan exactamente como están.
 
 **Editado**
 - `src/components/ServicesProjectsJourney.tsx`:
-  - Eliminar `ProjectCard` (componente `<Html transform>` y su uso).
-  - Agregar `ProjectsOverlay` como DOM 2D absoluto sobre el sticky stage.
-  - Fade del Canvas a opacity 0 durante Acto II.
-  - Ajustar `RouteLine` para cortar en el pivote.
-  - Reposicionar Software/SaaS a `[3, 1.5, -36]`.
-  - Ajustar textos del eyebrow 2D en Acto II.
+  - `canvasOpacity`: rangos `0.40 → 0.46` (antes `0.56 → 0.62`).
+  - Eliminar el cuerpo `PIVOT` del Canvas 3D (quitar del render 3D).
+  - Agregar `PivotPoint2D` como div DOM con glow magenta, visible 0.42 → 0.56.
+  - `eyebrowText` y su overlay: opacity 0 durante fase `transition`.
+  - `ProjectsOverlay`: cutoff duro `l > 0.9` + fade global `progress > 0.96`.
+  - `RouteLine`: termina en la posición donde estaba el pivote (sin cambio estructural, solo visual).
 
 **Sin tocar**
-- V2, V3, V4, `ProjectsWarp.tsx` original (lo uso como referencia, no como dependencia).
-- Hero, Manifiesto, About, Footer V2, starfield global.
-- Assets de imágenes (ya existen).
+- Posiciones de servicios, shaders, starfield global, flash overlay.
+- V2, V3, V4, Hero, Manifiesto, About, Footer V2.
 
