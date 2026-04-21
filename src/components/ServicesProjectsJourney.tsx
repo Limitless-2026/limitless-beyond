@@ -7,6 +7,14 @@ import { useMouseParallaxRef } from "@/hooks/useMouseParallax";
 
 const ServicesNebula = lazy(() => import("@/components/ServicesNebula"));
 
+// Project imagery (renderizadas como cards en 3D durante el Acto II)
+import imgNebulaOS from "@/assets/projects/nebula-os.jpg";
+import imgAuroraCommerce from "@/assets/projects/aurora-commerce.jpg";
+import imgPulsarStudio from "@/assets/projects/pulsar-studio.jpg";
+import imgQuantumBank from "@/assets/projects/quantum-bank.jpg";
+import imgHeliosHealth from "@/assets/projects/helios-health.jpg";
+import imgCosmosTravel from "@/assets/projects/cosmos-travel.jpg";
+
 // ============================================================
 // DATA
 // ============================================================
@@ -21,6 +29,7 @@ type Body = {
   color: string;
   impact?: boolean;
   act: "I" | "II";
+  image?: string;
 };
 
 // ACTO I — Servicios. La cámara AVANZA (z pasa de 0 a -55).
@@ -38,9 +47,9 @@ const SERVICES: Body[] = [
 // La cámara llega, lo rodea y vuelve.
 const PIVOT: Body = {
   id: "pivot",
-  number: "★",
-  title: "HORIZONTE",
-  desc: "El punto donde la promesa se vuelve prueba.",
+  number: "",
+  title: "",
+  desc: "",
   position: [0, 0, -58],
   scale: 2.2,
   color: "#C8007A",
@@ -52,12 +61,12 @@ const PIVOT: Body = {
 // Los proyectos están en posiciones X/Y DISTINTAS a los servicios
 // para no solaparse. Orden del primero encontrado al volver → al final.
 const PROJECTS: Body[] = [
-  { id: "p1", number: "01", title: "NEBULA OS",       desc: "Plataforma SaaS · 2025",      position: [ 4,  3, -48], scale: 1.1, color: "#7B2FFF", act: "II" },
-  { id: "p2", number: "02", title: "AURORA COMMERCE", desc: "E-commerce · 2024",           position: [-5,  1, -40], scale: 1.3, color: "#9A5BFF", act: "II" },
-  { id: "p3", number: "03", title: "PULSAR STUDIO",   desc: "Branding & Web · 2024",       position: [ 3, -3, -32], scale: 0.9, color: "#7B2FFF", act: "II" },
-  { id: "p4", number: "04", title: "QUANTUM BANK",    desc: "Fintech · 2025",              position: [-6,  2, -24], scale: 1.0, color: "#5A1FD8", act: "II" },
-  { id: "p5", number: "05", title: "HELIOS HEALTH",   desc: "Producto digital · 2023",     position: [ 2,  3, -15], scale: 1.2, color: "#9A5BFF", act: "II" },
-  { id: "p6", number: "06", title: "COSMOS TRAVEL",   desc: "Marketplace · 2025",          position: [-3, -2,  -6], scale: 1.0, color: "#7B2FFF", act: "II" },
+  { id: "p1", number: "01", title: "NEBULA OS",       desc: "Plataforma SaaS · 2025",  position: [ 4,  3, -48], scale: 1.1, color: "#7B2FFF", act: "II", image: imgNebulaOS },
+  { id: "p2", number: "02", title: "AURORA COMMERCE", desc: "E-commerce · 2024",       position: [-5,  1, -40], scale: 1.3, color: "#9A5BFF", act: "II", image: imgAuroraCommerce },
+  { id: "p3", number: "03", title: "PULSAR STUDIO",   desc: "Branding & Web · 2024",   position: [ 3, -3, -32], scale: 0.9, color: "#7B2FFF", act: "II", image: imgPulsarStudio },
+  { id: "p4", number: "04", title: "QUANTUM BANK",    desc: "Fintech · 2025",          position: [-6,  2, -24], scale: 1.0, color: "#5A1FD8", act: "II", image: imgQuantumBank },
+  { id: "p5", number: "05", title: "HELIOS HEALTH",   desc: "Producto digital · 2023", position: [ 2,  3, -15], scale: 1.2, color: "#9A5BFF", act: "II", image: imgHeliosHealth },
+  { id: "p6", number: "06", title: "COSMOS TRAVEL",   desc: "Marketplace · 2025",      position: [-3, -2,  -6], scale: 1.0, color: "#7B2FFF", act: "II", image: imgCosmosTravel },
 ];
 
 // ACTO I bodies = servicios + pivote (los que se renderizan como planetas con shader).
@@ -301,6 +310,9 @@ function BodyLabel({
   cameraPos: THREE.Vector3;
   cameraYaw: number;
 }) {
+  // Pivote sin texto: no se renderiza label alguno.
+  if (!body.title) return null;
+
   // Direction from camera to body
   const dx = body.position[0] - cameraPos.x;
   const dz = body.position[2] - cameraPos.z;
@@ -473,84 +485,102 @@ function ProjectCard({
       >
         <div
           style={{
-            width: "360px",
-            height: "216px",
+            width: "380px",
+            height: "280px",
             transform: `scale(${scale})`,
             transition: "transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1)",
-            background: "rgba(14, 14, 20, 0.62)",
-            backdropFilter: "blur(14px)",
-            WebkitBackdropFilter: "blur(14px)",
+            background: "rgba(8, 8, 12, 0.85)",
             border: isActive
               ? "1px solid rgba(123, 47, 255, 0.75)"
               : "1px solid rgba(123, 47, 255, 0.28)",
             boxShadow: isActive
-              ? "0 0 60px -10px rgba(123, 47, 255, 0.55), inset 0 0 40px rgba(123, 47, 255, 0.08)"
-              : "0 0 48px -14px rgba(123, 47, 255, 0.35)",
-            padding: "22px 26px",
+              ? "0 0 80px -10px rgba(123, 47, 255, 0.7)"
+              : "0 0 56px -14px rgba(123, 47, 255, 0.4)",
             display: "flex",
             flexDirection: "column",
-            justifyContent: "space-between",
             color: "#EDECE8",
             fontFamily: "'DM Sans', sans-serif",
+            overflow: "hidden",
           }}
         >
+          {/* Imagen del proyecto */}
           <div
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              fontSize: "10px",
-              letterSpacing: "0.35em",
-              textTransform: "uppercase",
-              opacity: 0.55,
-              fontWeight: 300,
+              width: "100%",
+              height: "210px",
+              overflow: "hidden",
+              position: "relative",
+              flexShrink: 0,
             }}
           >
-            <span>◆ {body.number}</span>
-            <span>{body.desc.split("·").pop()?.trim() ?? ""}</span>
+            <img
+              src={body.image}
+              alt={body.title}
+              draggable={false}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+                filter: isActive ? "saturate(1.1)" : "saturate(0.9)",
+                transition: "filter 300ms linear",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background:
+                  "linear-gradient(180deg, rgba(8,8,12,0) 55%, rgba(8,8,12,0.85) 100%)",
+              }}
+            />
+            <span
+              style={{
+                position: "absolute",
+                top: "12px",
+                left: "14px",
+                fontSize: "10px",
+                letterSpacing: "0.4em",
+                textTransform: "uppercase",
+                opacity: 0.75,
+                fontWeight: 300,
+                color: "#EDECE8",
+              }}
+            >
+              ◆ {body.number}
+            </span>
           </div>
 
-          <div>
+          {/* Caption mínimo */}
+          <div
+            style={{
+              flex: 1,
+              padding: "14px 18px",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              gap: "4px",
+            }}
+          >
             <div
               style={{
                 fontFamily: "'Arkitech', 'Inter', sans-serif",
-                fontSize: "28px",
-                letterSpacing: "0.12em",
+                fontSize: "18px",
+                letterSpacing: "0.14em",
                 fontWeight: 300,
                 lineHeight: 1,
-                marginBottom: "8px",
+                textTransform: "uppercase",
               }}
             >
               {body.title}
             </div>
             <div
               style={{
-                fontSize: "12px",
-                letterSpacing: "0.08em",
-                opacity: 0.7,
+                fontSize: "11px",
+                letterSpacing: "0.18em",
+                opacity: 0.55,
                 fontWeight: 300,
                 textTransform: "uppercase",
-              }}
-            >
-              {body.desc.split("·")[0]?.trim()}
-            </div>
-          </div>
-
-          <div>
-            <div
-              style={{
-                width: "44px",
-                height: "1px",
-                background: "rgba(123, 47, 255, 0.8)",
-                marginBottom: "10px",
-              }}
-            />
-            <div
-              style={{
-                fontSize: "12px",
-                fontWeight: 300,
-                opacity: 0.75,
-                lineHeight: 1.5,
               }}
             >
               {body.desc}
