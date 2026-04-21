@@ -721,7 +721,7 @@ const ServicesProjectsJourney = () => {
   const eyebrowText = isAct2
     ? "Pruebas · Atravesando el espacio"
     : isTransition
-    ? "Horizonte · Atravesando"
+    ? ""
     : "Capacidades · Cosmos 3D";
 
   const poolSize = isAct2 ? PROJECTS.length : SERVICES.length;
@@ -732,10 +732,17 @@ const ServicesProjectsJourney = () => {
     : state.activeBody.number;
   const activeTitle = isAct2 ? act2Project.title : state.activeBody.title;
 
-  // Fade overlay text during inflexion
-  const overlayOpacity = isTransition
-    ? Math.abs(((progress - ACT_I_END) / (INFLEXION_END - ACT_I_END)) - 0.5) * 2
-    : 1;
+  // Durante la transición (giro 180°) el eyebrow desaparece por completo.
+  const overlayOpacity = isTransition ? 0 : 1;
+
+  // Pivote magenta como overlay 2D DOM: glow que aparece en el centro durante
+  // la inflexión, reemplazando al planeta magenta 3D (ya eliminado del Canvas).
+  const pivotCenter = (ACT_I_END + INFLEXION_END) / 2; // 0.50
+  const pivotRange = (INFLEXION_END - ACT_I_END) / 2; // 0.08
+  const pivotD = Math.abs(progress - pivotCenter) / pivotRange;
+  const pivotVisible = pivotD < 1;
+  const pivotScale = pivotVisible ? Math.pow(1 - pivotD, 0.6) : 0;
+  const pivotOpacity = pivotVisible ? Math.pow(1 - pivotD, 1.2) : 0;
 
   return (
     <section
