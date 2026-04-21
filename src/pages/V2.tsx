@@ -132,15 +132,21 @@ const V2 = () => {
               transform: `scale(${0.85 + midShow * 0.15})`,
             }}
           >
-            <p className="text-xs md:text-sm tracking-[0.4em] uppercase text-primary/80 mb-6 font-light">
+            <p
+              className="text-xs md:text-sm tracking-[0.4em] uppercase text-primary mb-6 font-light"
+              style={{ textShadow: "0 2px 20px rgba(0,0,0,0.8)" }}
+            >
               Cruzando el horizonte
             </p>
-            <h2 className="text-4xl md:text-6xl lg:text-7xl font-extralight tracking-tight leading-tight">
+            <h2
+              className="text-4xl md:text-6xl lg:text-7xl font-light tracking-tight leading-tight text-foreground/95"
+              style={{ textShadow: "0 2px 30px rgba(0,0,0,0.7)" }}
+            >
               No hay fronteras
               <br />
               cuando el espacio
               <br />
-              <em className="not-italic bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+              <em className="not-italic bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-transparent">
                 es infinito
               </em>
             </h2>
@@ -155,13 +161,22 @@ const V2 = () => {
               transform: `scale(${0.9 + endOpacity * 0.1})`,
             }}
           >
-            <p className="text-xs md:text-sm tracking-[0.4em] uppercase text-primary mb-6 font-light">
+            <p
+              className="text-xs md:text-sm tracking-[0.4em] uppercase text-primary mb-6 font-light"
+              style={{ textShadow: "0 2px 20px rgba(0,0,0,0.8)" }}
+            >
               Bienvenido al otro lado
             </p>
-            <h2 className="text-6xl md:text-8xl lg:text-[10rem] font-extralight tracking-tighter leading-none">
+            <h2
+              className="text-6xl md:text-8xl lg:text-[10rem] font-extralight tracking-tighter leading-none text-foreground"
+              style={{ textShadow: "0 4px 40px rgba(0,0,0,0.7)" }}
+            >
               LIMITLESS
             </h2>
-            <p className="mt-8 text-base md:text-lg text-foreground/60 max-w-lg mx-auto font-light">
+            <p
+              className="mt-8 text-base md:text-lg text-foreground/90 max-w-lg mx-auto font-light"
+              style={{ textShadow: "0 2px 20px rgba(0,0,0,0.7)" }}
+            >
               Diseño y desarrollo sin fronteras.
               <br />
               Hecho en Argentina, para el universo.
@@ -170,7 +185,10 @@ const V2 = () => {
         </section>
       </div>
 
-      <div className="relative z-0 h-[300vh]" />
+      <div className="relative z-0 h-[420vh]" />
+
+      {/* Vacío estelar entre el hero y los proyectos */}
+      <div className="relative z-0 h-[80vh] bg-black" />
 
       {/* Projects — warp flythrough */}
       <ProjectsWarp />
