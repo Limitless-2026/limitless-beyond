@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Dialog, DialogContent, DialogPortal, DialogOverlay } from "@/components/ui/dialog";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Dialog, DialogPortal, DialogOverlay } from "@/components/ui/dialog";
 import type { Service } from "@/data/services";
 
 interface Props {
@@ -27,14 +28,16 @@ const ServiceModal = ({ service, onClose }: Props) => {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogPortal>
         <DialogOverlay className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-        <DialogContent
-          className="fixed left-1/2 top-1/2 z-[201] grid w-[94vw] max-w-3xl max-h-[88vh] -translate-x-1/2 -translate-y-1/2 overflow-hidden border-0 p-0 shadow-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+        <DialogPrimitive.Content
+          aria-describedby={undefined}
+          className="fixed left-1/2 top-1/2 z-[201] w-[94vw] max-w-3xl max-h-[90vh] -translate-x-1/2 -translate-y-1/2 overflow-hidden border-0 p-0 shadow-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
           style={{
             background: "#0E0E14",
             border: `1px solid ${accent}33`,
             boxShadow: `0 0 80px ${accent}22, 0 0 0 1px ${accent}11`,
           }}
         >
+          <DialogPrimitive.Title className="sr-only">{service.title}</DialogPrimitive.Title>
           {/* Soft halo */}
           <div
             aria-hidden
@@ -45,29 +48,29 @@ const ServiceModal = ({ service, onClose }: Props) => {
             }}
           />
 
-          <div className="relative overflow-y-auto p-8 md:p-12">
+          {/* Close — único, fijo arriba a la derecha, fuera del scroll */}
+          <button
+            onClick={onClose}
+            aria-label="Cerrar"
+            className="absolute top-5 right-5 md:top-6 md:right-6 z-10 w-9 h-9 rounded-full border border-foreground/20 bg-background/40 backdrop-blur flex items-center justify-center text-foreground/60 hover:text-foreground hover:border-foreground/50 transition-colors"
+          >
+            <span className="absolute h-px w-3.5 bg-current rotate-45" />
+            <span className="absolute h-px w-3.5 bg-current -rotate-45" />
+          </button>
+
+          <div className="relative overflow-y-auto max-h-[90vh] p-8 md:p-12 pr-14 md:pr-16">
             {/* Header */}
-            <div className="flex items-start justify-between mb-8">
-              <div className="flex items-center gap-3">
-                <span
-                  className="block w-2.5 h-2.5 rounded-full"
-                  style={{ background: accent, boxShadow: `0 0 14px ${accent}` }}
-                />
-                <span
-                  className="text-[10px] tracking-[0.4em] uppercase font-light"
-                  style={{ color: accent, fontFamily: "'DM Sans', sans-serif" }}
-                >
-                  {service.number} / 06 · Servicio
-                </span>
-              </div>
-              <button
-                onClick={onClose}
-                aria-label="Cerrar"
-                className="group relative w-8 h-8 flex items-center justify-center text-foreground/50 hover:text-foreground transition-colors"
+            <div className="flex items-center gap-3 mb-8">
+              <span
+                className="block w-2.5 h-2.5 rounded-full"
+                style={{ background: accent, boxShadow: `0 0 14px ${accent}` }}
+              />
+              <span
+                className="text-[10px] tracking-[0.4em] uppercase font-light"
+                style={{ color: accent, fontFamily: "'DM Sans', sans-serif" }}
               >
-                <span className="absolute h-px w-4 bg-current rotate-45" />
-                <span className="absolute h-px w-4 bg-current -rotate-45" />
-              </button>
+                {service.number} / 06 · Servicio
+              </span>
             </div>
 
             {/* Title */}
@@ -175,7 +178,7 @@ const ServiceModal = ({ service, onClose }: Props) => {
               </span>
             </Link>
           </div>
-        </DialogContent>
+        </DialogPrimitive.Content>
       </DialogPortal>
     </Dialog>
   );
