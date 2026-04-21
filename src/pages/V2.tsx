@@ -3,6 +3,8 @@ import CustomCursor from "@/components/CustomCursor";
 import ProjectsWarp from "@/components/ProjectsWarp";
 import StarfieldParallax from "@/components/StarfieldParallax";
 import ServicesOrbit from "@/components/ServicesOrbit";
+import AboutConstellation from "@/components/AboutConstellation";
+import PortalCTA from "@/components/PortalCTA";
 
 function isWebGLAvailable(): boolean {
   try {
