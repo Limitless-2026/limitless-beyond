@@ -1,115 +1,119 @@
 
 
-# Plan: Unificar Servicios + Proyectos en un solo viaje 3D retrógrado
+# Plan: Acto II con cards de proyectos flotando en 3D
 
-Tenés razón — con `ServicesCosmos` (3D) y `ProjectsWarp` (lineal horizontal) seguidos, la sección se siente repetida: dos "constelaciones" pegadas, cada una pidiendo su propio momento de atención. La solución más fuerte narrativamente es **unificarlas en una sola secuencia continua** donde el usuario atraviesa primero los servicios y después los proyectos en el mismo volumen 3D, pero con una **inversión de dirección** que genera tensión.
+Buenísima idea — la rotación 180° es el momento más fuerte del viaje y merece una revelación distinta. Hacer que al girar la cámara aparezcan los proyectos como **cards flotantes** (no como planetas) crea un contraste narrativo perfecto:
 
----
+- **Acto I** = cosmos puro, servicios como cuerpos celestes (abstracto, promesa).
+- **Giro** = pivote magenta + flash (revelación).
+- **Acto II** = las cards de proyectos aparecen suspendidas en el vacío, como evidencia tangible (concreto, prueba).
 
-## Concepto
-
-**Un solo viaje. Dos actos.**
-
-- **Acto I — CAPACIDADES** (lo que podemos hacer): la cámara avanza hacia adelante en el cosmos, encontrando 6 cuerpos-servicio.
-- **Punto de inflexión**: la cámara llega a un "horizonte" — un cuerpo magenta masivo (pivote narrativo). Se frena, gira 180°.
-- **Acto II — PRUEBAS** (lo que ya hicimos): la cámara **vuelve hacia atrás** atravesando el mismo cosmos pero descubriendo 6 cuerpos nuevos — los proyectos — que estaban "detrás" todo el tiempo. El viaje de vuelta es la evidencia de lo que afirmó el Acto I.
-
-Eso responde exacto a tu intuición: **la web retrocede en esas dos secciones**, pero con sentido — no es ir hacia atrás por ir, es "volver mostrando pruebas".
+El cambio de lenguaje (planetas → cards) refuerza la narrativa: "lo que prometemos" vs "lo que entregamos".
 
 ---
 
-## Por qué funciona
+## Cambios en `ServicesProjectsJourney.tsx`
 
-- **Elimina la repetición**: una sola escena 3D, un solo sistema de partículas, una sola cámara. No hay dos "cosmos" seguidos.
-- **Narrativa cinematográfica**: ida (promesa) → giro (revelación) → vuelta (evidencia). Clásico y muy reconocible.
-- **Jerarquía de marca**: el único cuerpo magenta (`#C8007A`) es el pivote en el medio del viaje — respeta la regla "aparece UNA sola vez por página".
-- **Scroll coherente con Lenis**: un único tramo largo (sticky 100vh sobre contenedor 900vh) con tres fases claras.
+### Lo que se mantiene
+- Acto I intacto: 6 servicios como cuerpos celestes con shader GLSL.
+- Pivote magenta en el centro + flash blanco.
+- Rotación 180° de la cámara (el momento "espectacular").
+- Overlay 2D (eyebrow, contador, barra de progreso).
+- Starfield, partículas, fog violeta.
 
----
+### Lo que cambia: Acto II (progress 0.58 → 1.00)
 
-## Mecánica
+**Se eliminan** los 6 cuerpos celestes de proyectos.
+
+**Se agregan 6 cards 3D flotantes** distribuidas en el mismo volumen que antes ocupaban los planetas-proyecto, pero con tratamiento completamente distinto:
 
 ```text
-Contenedor sticky: 900vh (vs. 500vh + 400vh actuales = 900vh, pero unificados).
-progress global: 0 → 1.
-
-[ 0.00 → 0.42 ]  ACTO I — CAPACIDADES
-  cámara avanza: z = -progress_local * 55
-  serpentea X/Y (sin/cos) — viaje no lineal
-  6 servicios distribuidos en z = -8 a z = -50
-  overlay 2D: "Capacidades · 01 / 06"
-
-[ 0.42 → 0.58 ]  INFLEXIÓN — HORIZONTE MAGENTA
-  cámara se frena gradualmente al acercarse al pivote
-  cuerpo magenta central (en z = -55) crece ocupando el FOV
-  micro-flash blanco al "atravesarlo"
-  cámara rota 180° en yaw (π radianes) durante este tramo
-  overlay 2D: transición "Capacidades" → "Pruebas"
-  (texto fade-out + fade-in con 200ms de silencio)
-
-[ 0.58 → 1.00 ]  ACTO II — PRUEBAS
-  cámara vuelve: z va de -55 hacia -5 (dirección invertida)
-  ahora mira hacia +z, los cuerpos pasan de atrás hacia adelante
-  6 proyectos distribuidos en el MISMO volumen pero en
-    posiciones X/Y distintas a los servicios (no se solapan)
-  overlay 2D: "Pruebas · 01 / 06"
-  al final, cámara frena y el último proyecto queda
-  centrado → transición natural al About
+Cada card:
+  - Plano 3D (6 x 3.6 unidades, ratio 16:10) con <Html transform>
+    de drei → DOM real renderizado en 3D con perspectiva real.
+  - Contenido HTML:
+      ┌─────────────────────────────────┐
+      │  ★ 01                  2025     │
+      │                                 │
+      │  NEBULA OS                      │
+      │  Plataforma SaaS                │
+      │                                 │
+      │  ──────────                     │
+      │  Dashboard de gestión orbital.  │
+      └─────────────────────────────────┘
+  - Fondo: glass morphism (bg rgba(14,14,20,0.6) + backdrop-blur)
+  - Borde: 1px violeta con opacity 0.3
+  - Tipografía: Arkitech para título, DM Sans 300 para meta
+  - Shadow: glow violeta sutil detrás
 ```
 
----
+### Comportamiento de las cards
 
-## Componente único: `ServicesProjectsJourney.tsx`
+- **Orientación**: cada card siempre mira a la cámara (`billboard` via `lookAt` en `useFrame`) → nunca se ve de canto, legibilidad asegurada.
+- **Entrada**: al empezar Acto II (0.58), las 6 cards están invisibles (scale 0, opacity 0). Entran escalonadas cada 0.06 de progreso, con:
+  - `scale` 0 → 1 (spring easing)
+  - `opacity` 0 → 1
+  - `position.z` offset +3 → 0 (llegan desde adelante, como materializándose)
+- **Flotación orgánica**: cada card tiene micro-oscilación Y (±0.15 unidades) con frecuencia distinta → "suspendidas en gravedad cero".
+- **Hover** (mientras la cámara pasa cerca): la card más cercana gana `scale 1.1` + borde violeta más intenso. El cursor cambia a pointer.
+- **Salida**: cuando la cámara pasa (card queda detrás), fade-out suave por distancia 3D.
 
-Reemplaza a `ServicesCosmos` + `ProjectsWarp` en V5. Un solo Canvas R3F:
+### Distribución en el volumen
 
-- **Cámara controlada por `useScrollProgress`**: tres rangos de progreso, tres comportamientos.
-- **12 cuerpos celestes** distribuidos en el volumen (6 servicios z: -8 a -50, 6 proyectos z: -50 a -5 en la vuelta con offsets X/Y distintos).
-- **1 pivote magenta** en z = -55, tamaño grande (escala 2.2), único uso de `#C8007A`.
-- **Starfield único**: `<Points>` con ~1200 partículas cubriendo todo el volumen.
-- **Línea de ruta**: Bezier 3D que dibuja el camino de ida Y el camino de vuelta (se colorea progresivamente).
-- **Overlay HTML** (drei `<Html>`): labels de cada cuerpo, fade por distancia 3D. Los servicios muestran copy de V4. Los proyectos muestran los 6 proyectos del `ProjectsWarp` actual.
-- **Overlay 2D fijo**: eyebrow ("Capacidades" / "Pruebas"), contador (01/06), barra de progreso de la sección.
+Para que la cámara (que ya viene girada mirando +z) encuentre las cards en su camino de vuelta:
 
-### Cámara — detalle de la rotación
+```text
+  #   Proyecto           Posición (x, y, z)
+  01  NEBULA OS          ( 4,  1.5, -50)
+  02  AURORA BANK        (-5, -1,   -42)
+  03  KRONOS SPORTS      ( 3, -2.5, -34)
+  04  VORTEX LABS        (-4,  2,   -26)
+  05  HELIOS STUDIO      ( 5, -1,   -18)
+  06  MERIDIAN.CO        (-2,  1,   -10)
+```
 
-Durante el tramo 0.42→0.58:
-- `yaw` interpola de 0 a π con easing `cubic-bezier(0.7, 0, 0.3, 1)`.
-- El punto de `lookAt` gira con ella: mira hacia `z - 5` en la ida, hacia `z + 5` en la vuelta.
-- Flash blanco sincronizado en el pico (progress_local 0.5) con `mix-blend-mode: screen`, opacity pico 0.4, ancho 0.04.
+Offsets X/Y distintos a los servicios del Acto I → la cámara serpentea entre cards nuevas al volver.
+
+### Línea de ruta en Acto II
+
+- Se mantiene el `CatmullRomCurve3`, pero ahora conecta los 6 puntos de las cards.
+- Color: violeta con opacity 0.2 (más sutil que en Acto I, para no competir con las cards).
 
 ### Performance
 
-- Un solo `<Canvas>` reemplaza a dos componentes → menos overhead.
-- `frameloop="demand"` fuera del viewport, `"always"` dentro.
-- Shaders heredados del `ServicesCosmos` actual (fbm 3 octavas).
-- Fallback WebGL → versión 2D lineal apilada (servicios + proyectos de V4) si no hay soporte.
+- `<Html transform>` de drei: un solo DOM root reutilizado, R3F gestiona el reposicionamiento.
+- `distanceFactor` calibrado para que las cards mantengan tamaño legible (~6 unidades de ancho a 8 de distancia).
+- 6 cards DOM es trivial en términos de carga — mucho más barato que 6 spheres con shader.
+- `occlude={false}` → las cards nunca se tapan por los cuerpos celestes del Acto I (que ya están lejos al volver).
 
 ---
 
-## Qué se elimina y qué se preserva
+## Copy de las cards (placeholder narrativo, editable luego)
 
-**Se elimina de V5**:
-- `<ServicesCosmos />` aislado.
-- `<ProjectsWarp />` aislado.
-- El espaciador de `80vh` entre ambos.
+```text
+01 · NEBULA OS       · Plataforma SaaS · 2025
+02 · AURORA BANK     · Fintech mobile · 2024
+03 · KRONOS SPORTS   · E-commerce · 2024
+04 · VORTEX LABS     · Brand system · 2024
+05 · HELIOS STUDIO   · Web experience · 2023
+06 · MERIDIAN.CO     · Corporate site · 2023
+```
 
-**Se preserva**:
-- Copy de los 6 servicios (de `ServicesNebula`/`ServicesCosmos`).
-- Copy y metadata de los 6 proyectos (de `ProjectsWarp`).
-- Hero, Manifiesto, About, Footer V2 — todo intacto.
-- V2, V3, V4 sin tocar.
+Cada una con una descripción corta de 1 línea.
+
+---
+
+## Overlay 2D durante Acto II
+
+Mismo esquema actual, pero el eyebrow pasa de "Pruebas · Cosmos 3D" a "Proyectos · 03 / 06" con el nombre del proyecto más cercano debajo, en Arkitech 12px. Pequeño detalle que ancla cada card.
 
 ---
 
 ## Archivos
 
-**Nuevo**
-- `src/components/ServicesProjectsJourney.tsx` — escena R3F única con los dos actos + inflexión.
-
 **Editado**
-- `src/pages/V5.tsx` — reemplazar `<ServicesCosmos /> + <ProjectsWarp />` por `<ServicesProjectsJourney />`. Ajustar spacers.
+- `src/components/ServicesProjectsJourney.tsx` — reemplazar los 6 cuerpos celestes del Acto II por 6 cards 3D con `<Html transform>`. Ajustar línea de ruta de Acto II. Entrada escalonada, flotación orgánica, billboard.
 
 **Sin tocar**
-- Todo lo demás. V2/V3/V4 intactos. Hero, Manifiesto, About, Footer V2 de V5 intactos.
+- Acto I (servicios). Pivote magenta. Rotación 180°. Flash. Overlay 2D base. V2/V3/V4. Hero, Manifiesto, About, Footer V2.
 
