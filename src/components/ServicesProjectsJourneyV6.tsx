@@ -675,10 +675,12 @@ function Scene({
   progress,
   onStateChange,
   onSelectService,
+  pointerRef,
 }: {
   progress: number;
   onStateChange: (s: SceneState) => void;
   onSelectService: (s: ServiceMeta) => void;
+  pointerRef: React.MutableRefObject<{ x: number; y: number; active: boolean }>;
 }) {
   const { camera } = useThree();
   const mouse = useMouseParallaxRef();
@@ -799,6 +801,7 @@ function Scene({
             cameraPos={cameraPosVec.current}
             serviceMeta={meta}
             onSelect={onSelectService}
+            pointerRef={pointerRef}
           />
         );
       })}
