@@ -1,68 +1,35 @@
 
 
-# Plan: arreglar el menú de una vez
+# Implementación: Preloader + página Proyectos
 
-Tres correcciones puntuales sobre el menú actual.
+Confirmado el plan anterior. Lo ejecuto tal cual quedó definido:
 
----
+## Preloader del inicio
+- Nuevo `src/components/Preloader.tsx`: pantalla negra con contador 00→100 Arkitech, línea de progreso violeta, partículas escalonadas, micro-textos rotativos (`CALIBRANDO COORDENADAS` / `ABRIENDO PORTAL` / `ROMPIENDO LÍMITES`), flash magenta al 100, anillo violeta de salida y fade al hero.
+- Solo primera visita por sesión (`sessionStorage`).
+- Respeta `prefers-reduced-motion`.
+- Montado en `src/pages/V5.tsx` por encima de todo.
 
-## 1. Sacar la palabra "MENÚ" del trigger
+## Página Proyectos
+- `src/data/projects.ts`: 6 proyectos placeholder en español (Nebula, Órbita 7, Kairos, Singularidad, Albedo Studio, Portal Cero) con `cliente`, `año`, `stack`, `tipo`, `estado`, `descripcion`.
+- `src/components/ProjectStation.tsx`: fila editorial alternada izq/der con número, estado, título grande, visual placeholder (gradiente violeta-magenta + nombre), sidebar de meta y CTA `VER CASO →`. Hover: scale del visual, anillo violeta animado, degradé en título, línea creciente.
+- `src/pages/Proyectos.tsx`: hero (`CONSTELACIÓN LIMITLESS` con degradé en `LIMITLESS`), starfield sutil, lista de 6 estaciones con stagger por viewport, bloque de cierre (`¿TU PROYECTO ES EL PRÓXIMO LÍMITE?` → `/contacto`), footer reutilizando `CosmicFooter`.
+- Magenta usado una sola vez: en el proyecto con estado `EN CONSTRUCCIÓN`.
 
-El botón fijo arriba a la derecha hoy muestra: `Menú — 03 ☰`.
-
-Lo dejamos solo con el ícono de tres líneas (☰), sin texto, sin numerito.
-- El ícono solo, alineado a la derecha.
-- Hover: las líneas cambian sutilmente de color (foreground/60 → foreground).
-- Al abrir, las líneas se transforman en X (animación ya existente).
-
----
-
-## 2. Eliminar la doble X
-
-Hoy conviven dos cierres cuando el menú está abierto:
-- el trigger fijo del header (que ahora va a ser solo ☰ → X),
-- el botón close por defecto de Radix dentro del `SheetContent`.
-
-Soluciones:
-- **`src/components/ui/sheet.tsx`**: agregar prop `hideDefaultClose` al `SheetContent` para no renderizar el close por defecto cuando se pide. Reemplaza el hack actual de `<style>` inyectado.
-- **`src/components/HamburgerMenu.tsx`**:
-  - Pasar `hideDefaultClose` al `SheetContent`.
-  - Ocultar el trigger fijo cuando `open === true` (`opacity-0 pointer-events-none` + transición), así no compite visualmente con la X custom del header del panel.
-  - Dejar solo la X custom del header interno como único cierre visible.
-
----
-
-## 3. Que no se corte el contenido
-
-El panel actual usa `overflow-hidden` y los títulos son demasiado grandes para el viewport medio → letras cortadas.
-
-Cambios en `src/components/HamburgerMenu.tsx`:
-- Estructura en 3 zonas con flex column:
-  - header fijo (índice + X),
-  - `nav` flexible con `flex-1 min-h-0 overflow-y-auto`,
-  - footer fijo.
-- Tipografía de los items más responsive: bajar de `text-5xl md:text-6xl` a `text-4xl md:text-5xl` con tracking más contenido (`0.14em` en vez de `0.18em`), para que entren completos.
-- Reducir gap entre items (`gap-10` → `gap-6`) y padding lateral del nav para ganar ancho útil.
-- Watermark vertical "LIMITLESS": bajar tamaño (`text-7xl` → `text-5xl`) y opacidad para que no empuje al contenido visible.
-- Quitar el `<style>` inline que ocultaba el close (ya no hace falta).
-
----
-
-## Resultado
-
-- Trigger: solo ícono ☰, sin texto.
-- Una sola X visible al abrir (la del header del panel).
-- Items completos, sin recortes, en el viewport actual y más chicos.
-- Mismo lenguaje visual editorial, más limpio.
-
----
+## Sobre "VER CASO" y múltiples imágenes (próximo paso, no ahora)
+Sí, la idea natural es que cada proyecto tenga su propia subpágina `/proyectos/:slug` con galería (hero del caso, varias imágenes/videos, problema, solución, resultados, créditos). En esta entrega dejo el CTA `VER CASO →` preparado pero sin navegar todavía (placeholder visual) para que en la próxima iteración lo conectemos a las páginas de detalle con la estructura de galería múltiple. Así no mezclamos scope.
 
 ## Archivos
 
-**Editar**
-- `src/components/ui/sheet.tsx` — agregar soporte `hideDefaultClose`.
-- `src/components/HamburgerMenu.tsx` — quitar texto "Menú/— 03" del trigger, ocultar trigger al abrir, usar `hideDefaultClose`, rehacer layout responsive y reducir escalas.
+**Nuevos**
+- `src/components/Preloader.tsx`
+- `src/components/ProjectStation.tsx`
+- `src/data/projects.ts`
+
+**Editados**
+- `src/pages/V5.tsx` — montar Preloader.
+- `src/pages/Proyectos.tsx` — página completa.
 
 **Sin tocar**
-- `V5.tsx`, `Contacto.tsx`, scroll, hero, servicios, proyectos, footer.
+- Hero, Manifiesto, Servicios, About, Contacto, menú, scroll, footer.
 
