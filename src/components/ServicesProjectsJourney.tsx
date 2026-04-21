@@ -744,6 +744,27 @@ const ServicesProjectsJourney = () => {
   const pivotScale = pivotVisible ? Math.pow(1 - pivotD, 0.6) : 0;
   const pivotOpacity = pivotVisible ? Math.pow(1 - pivotD, 1.2) : 0;
 
+  // Giro visual: starfield DOM que rota 0° → 180° durante la inflexión para que
+  // el usuario SIENTA la rotación de cámara aunque el Canvas 3D esté apagado.
+  // Ventana extendida levemente antes y después para fade-in/out suave.
+  const turnStart = 0.42;
+  const turnEnd = 0.58;
+  const turnT = Math.max(0, Math.min(1, (progress - turnStart) / (turnEnd - turnStart)));
+  // Easing suave para que el giro acelere en el centro (sensación de cámara).
+  const turnEase = turnT < 0.5
+    ? 2 * turnT * turnT
+    : 1 - Math.pow(-2 * turnT + 2, 2) / 2;
+  const turnYaw = turnEase * 180; // grados
+  const turnVisible = progress > turnStart - 0.02 && progress < turnEnd + 0.02;
+  // Fade in/out del starfield rotante
+  const turnFade = !turnVisible
+    ? 0
+    : progress < turnStart
+    ? (progress - (turnStart - 0.02)) / 0.02
+    : progress > turnEnd
+    ? 1 - (progress - turnEnd) / 0.02
+    : 1;
+
   return (
     <section
       ref={sectionRef}
