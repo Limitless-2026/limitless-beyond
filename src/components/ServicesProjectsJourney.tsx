@@ -69,10 +69,11 @@ const PROJECTS: Body[] = [
   { id: "p6", number: "06", title: "COSMOS TRAVEL",   desc: "Marketplace · 2025",      position: [-3, -2,  -6], scale: 1.0, color: "#7B2FFF", act: "II", image: imgCosmosTravel },
 ];
 
-// ACTO I bodies = servicios + pivote (los que se renderizan como planetas con shader).
-// Los proyectos del ACTO II se renderizan como cards 3D flotantes (HTML transform),
-// NO como cuerpos celestes.
-const ACT_I_BODIES: Body[] = [...SERVICES, PIVOT];
+// ACTO I bodies = servicios (planetas con shader).
+// El pivote magenta se renderiza como overlay 2D DOM (ver PivotPoint2D) para
+// seguir visible cuando el Canvas 3D hace fade-out antes del giro.
+// Los proyectos del ACTO II se renderizan como cards 2D en ProjectsOverlay.
+const ACT_I_BODIES: Body[] = [...SERVICES];
 
 // Fases del viaje
 const ACT_I_END = 0.42;
