@@ -160,7 +160,11 @@ const ProjectStationV3 = ({ project, index, total }: Props) => {
               transition: "clip-path 1300ms cubic-bezier(0.85, 0, 0.15, 1) 200ms",
             }}
           >
-            <Link to={`/proyectos/${project.slug}`} className="block w-full h-full">
+            <Link
+              to={`/proyectos/v3/${project.slug}`}
+              state={{ from: "v3" }}
+              className="block w-full h-full"
+            >
               <img
                 ref={imgRef}
                 src={project.cover}
@@ -301,7 +305,8 @@ const ProjectStationV3 = ({ project, index, total }: Props) => {
           </dl>
 
           <Link
-            to={`/proyectos/${project.slug}`}
+            to={`/proyectos/v3/${project.slug}`}
+            state={{ from: "v3" }}
             className="self-start group/cta inline-flex items-center gap-3 font-mono text-[11px] tracking-[0.4em] uppercase border border-foreground/30 px-4 py-3 hover:bg-primary hover:border-primary hover:text-primary-foreground transition-colors"
             style={{
               opacity: visible ? 1 : 0,

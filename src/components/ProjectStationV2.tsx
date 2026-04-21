@@ -272,7 +272,8 @@ const ProjectStationV2 = ({ project, index, total }: Props) => {
               }}
             >
               <Link
-                to={`/proyectos/${project.slug}`}
+                to={`/proyectos/v2/${project.slug}`}
+                state={{ from: "v2" }}
                 className="relative block aspect-[4/3] overflow-hidden bg-surface group"
                 style={{
                   clipPath: visible ? "inset(0 0 0 0)" : "inset(100% 0 0 0)",
@@ -421,7 +422,8 @@ const ProjectStationV2 = ({ project, index, total }: Props) => {
 
           <div style={revealStyle(REVEAL_STEPS.cta)}>
             <Link
-              to={`/proyectos/${project.slug}`}
+              to={`/proyectos/v2/${project.slug}`}
+              state={{ from: "v2" }}
               className="self-start group/cta inline-flex items-center gap-3"
               aria-label={`Ver caso ${project.name}`}
             >
