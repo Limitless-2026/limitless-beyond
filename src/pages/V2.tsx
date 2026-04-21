@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import CustomCursor from "@/components/CustomCursor";
 import ProjectsWarp from "@/components/ProjectsWarp";
+import StarfieldParallax from "@/components/StarfieldParallax";
 
 function isWebGLAvailable(): boolean {
   try {
@@ -23,13 +24,30 @@ const V2 = () => {
   }, []);
 
   useEffect(() => {
+    let raf = 0;
+    let target = 0;
+    let current = 0;
+    const tick = () => {
+      current += (target - current) * 0.12;
+      if (Math.abs(target - current) < 0.0005) current = target;
+      setScrollProgress(current);
+      if (current !== target) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        raf = 0;
+      }
+    };
     const onScroll = () => {
       const max = window.innerHeight * 3.5;
-      setScrollProgress(Math.max(0, Math.min(1, window.scrollY / max)));
+      target = Math.max(0, Math.min(1, window.scrollY / max));
+      if (!raf) raf = requestAnimationFrame(tick);
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, []);
 
   // Hero text fades and stretches inward
@@ -43,23 +61,45 @@ const V2 = () => {
   const midFade = Math.max(0, 1 - Math.max(0, scrollProgress - 0.6) * 4);
   const midShow = midOpacity * midFade;
 
-  // Final section
-  const endOpacity = Math.max(0, (scrollProgress - 0.75) * 4);
+  // Final section — sube rápido a 1 en ~0.78 y se desvanece entre 0.85 y 0.92
+  const endIn = Math.max(0, Math.min(1, (scrollProgress - 0.62) * 6));
+  const endOut = Math.max(0, Math.min(1, 1 - Math.max(0, scrollProgress - 0.85) * 14));
+  const endOpacity = endIn * endOut;
+
+  // Capa de texto del hero — se oculta antes de que entren los proyectos
+  const heroLayerOpacity = scrollProgress < 0.85 ? 1 : Math.max(0, 1 - (scrollProgress - 0.85) * 14);
+  const heroLayerHidden = scrollProgress > 0.94;
+
+  // Nebulosa WebGL — fade-out en el último tramo del hero
+  const nebulaOpacity = scrollProgress < 0.78 ? 1 : Math.max(0, 1 - (scrollProgress - 0.78) * 6);
+
+  // Badge top-left — se atenúa al entrar en proyectos
+  const badgeOpacity = scrollProgress < 0.9 ? 1 : Math.max(0, 1 - (scrollProgress - 0.9) * 12);
 
   return (
     <div className="relative bg-background text-foreground">
       {/* Cosmic background — fixed, infinite */}
-      {useWebGL === null ? (
-        <div className="fixed inset-0" style={{ background: "rgb(2,1,5)" }} />
-      ) : useWebGL ? (
-        <Suspense fallback={<div className="fixed inset-0" style={{ background: "rgb(2,1,5)" }} />}>
-          <HeroWebGLV2 />
-        </Suspense>
-      ) : (
-        <div className="fixed inset-0 flex items-center justify-center" style={{ background: "rgb(2,1,5)" }}>
-          <p className="text-foreground/50 text-sm">WebGL no soportado en este navegador</p>
-        </div>
-      )}
+      <div
+        className="fixed inset-0"
+        style={{
+          opacity: nebulaOpacity,
+          transition: "opacity 200ms linear",
+          background: "rgb(2,1,5)",
+        }}
+      >
+        {useWebGL === null ? null : useWebGL ? (
+          <Suspense fallback={null}>
+            <HeroWebGLV2 />
+          </Suspense>
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <p className="text-foreground/50 text-sm">WebGL no soportado en este navegador</p>
+          </div>
+        )}
+      </div>
+
+      {/* Starfield parallax — toma el relevo al final del hero */}
+      <StarfieldParallax visible={scrollProgress > 0.78} />
 
       <CustomCursor />
 
@@ -74,13 +114,23 @@ const V2 = () => {
       />
 
       {/* Top-left v2 badge */}
-      <div className="fixed top-6 left-6 z-50 pointer-events-none">
+      <div
+        className="fixed top-6 left-6 z-50 pointer-events-none"
+        style={{ opacity: badgeOpacity, transition: "opacity 200ms linear" }}
+      >
         <span className="text-[10px] tracking-[0.4em] uppercase text-foreground/50 font-light">
           Limitless · v2
         </span>
       </div>
 
-      <div className="fixed inset-0 pointer-events-none z-10">
+      <div
+        className="fixed inset-0 pointer-events-none z-10"
+        style={{
+          opacity: heroLayerOpacity,
+          visibility: heroLayerHidden ? "hidden" : "visible",
+          transition: "opacity 150ms linear",
+        }}
+      >
         <section className="absolute inset-0 flex flex-col items-center justify-center">
           <div
             className="text-center px-6"
