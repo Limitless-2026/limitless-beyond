@@ -289,7 +289,7 @@ function RouteLine({ progress }: { progress: number }) {
 }
 
 // ============================================================
-// LABEL
+// LABEL (solo para planetas del Acto I + pivote)
 // ============================================================
 
 function BodyLabel({
@@ -382,6 +382,183 @@ function BodyLabel({
         </div>
       </div>
     </Html>
+  );
+}
+
+// ============================================================
+// PROJECT CARD 3D — reemplaza planetas en Acto II
+// ============================================================
+
+function ProjectCard({
+  body,
+  index,
+  progress,
+  cameraPos,
+  cameraYaw,
+  isActive,
+}: {
+  body: Body;
+  index: number;
+  progress: number;
+  cameraPos: THREE.Vector3;
+  cameraYaw: number;
+  isActive: boolean;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const floatPhase = useMemo(() => Math.random() * Math.PI * 2, []);
+  const floatFreq = useMemo(() => 0.6 + Math.random() * 0.5, []);
+
+  // Entrada escalonada: cada card entra 0.06 después de la anterior,
+  // empezando apenas comienza el Acto II.
+  const entryStart = INFLEXION_END + index * 0.015;
+  const entryEnd = entryStart + 0.06;
+  const entry = Math.max(0, Math.min(1, (progress - entryStart) / (entryEnd - entryStart)));
+  // Spring-ish easing
+  const eased = entry < 1
+    ? 1 - Math.pow(1 - entry, 3)
+    : 1;
+
+  // Billboard: la card mira a la cámara en cada frame
+  useFrame((state) => {
+    if (!groupRef.current) return;
+    const t = state.clock.elapsedTime;
+    // Flotación orgánica
+    const floatY = Math.sin(t * floatFreq + floatPhase) * 0.15;
+    const floatX = Math.cos(t * floatFreq * 0.7 + floatPhase) * 0.08;
+    groupRef.current.position.set(
+      body.position[0] + floatX,
+      body.position[1] + floatY,
+      body.position[2],
+    );
+    // Entry offset en Z (materializándose desde adelante)
+    const entryZOffset = (1 - eased) * 3;
+    groupRef.current.position.z += entryZOffset;
+    // Billboard
+    groupRef.current.lookAt(cameraPos);
+  });
+
+  // Opacity por distancia en dirección de la cámara
+  const dx = body.position[0] - cameraPos.x;
+  const dz = body.position[2] - cameraPos.z;
+  const fx = -Math.sin(cameraYaw);
+  const fz = -Math.cos(cameraYaw);
+  const depthInFront = dx * fx + dz * fz;
+  let distanceOpacity = 0;
+  if (depthInFront > -4 && depthInFront < 22) {
+    if (depthInFront < 3) {
+      distanceOpacity = Math.max(0, (depthInFront + 4) / 7);
+    } else {
+      distanceOpacity = Math.max(0, 1 - (depthInFront - 3) / 19);
+    }
+  }
+  const finalOpacity = eased * distanceOpacity;
+  const scale = eased * (isActive ? 1.08 : 1);
+
+  if (finalOpacity < 0.01) {
+    return null;
+  }
+
+  return (
+    <group ref={groupRef}>
+      <Html
+        center
+        transform
+        distanceFactor={8}
+        occlude={false}
+        style={{
+          pointerEvents: "none",
+          opacity: finalOpacity,
+          transition: "opacity 200ms linear",
+        }}
+      >
+        <div
+          style={{
+            width: "360px",
+            height: "216px",
+            transform: `scale(${scale})`,
+            transition: "transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1)",
+            background: "rgba(14, 14, 20, 0.62)",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
+            border: isActive
+              ? "1px solid rgba(123, 47, 255, 0.75)"
+              : "1px solid rgba(123, 47, 255, 0.28)",
+            boxShadow: isActive
+              ? "0 0 60px -10px rgba(123, 47, 255, 0.55), inset 0 0 40px rgba(123, 47, 255, 0.08)"
+              : "0 0 48px -14px rgba(123, 47, 255, 0.35)",
+            padding: "22px 26px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            color: "#EDECE8",
+            fontFamily: "'DM Sans', sans-serif",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              fontSize: "10px",
+              letterSpacing: "0.35em",
+              textTransform: "uppercase",
+              opacity: 0.55,
+              fontWeight: 300,
+            }}
+          >
+            <span>◆ {body.number}</span>
+            <span>{body.desc.split("·").pop()?.trim() ?? ""}</span>
+          </div>
+
+          <div>
+            <div
+              style={{
+                fontFamily: "'Arkitech', 'Inter', sans-serif",
+                fontSize: "28px",
+                letterSpacing: "0.12em",
+                fontWeight: 300,
+                lineHeight: 1,
+                marginBottom: "8px",
+              }}
+            >
+              {body.title}
+            </div>
+            <div
+              style={{
+                fontSize: "12px",
+                letterSpacing: "0.08em",
+                opacity: 0.7,
+                fontWeight: 300,
+                textTransform: "uppercase",
+              }}
+            >
+              {body.desc.split("·")[0]?.trim()}
+            </div>
+          </div>
+
+          <div>
+            <div
+              style={{
+                width: "44px",
+                height: "1px",
+                background: "rgba(123, 47, 255, 0.8)",
+                marginBottom: "10px",
+              }}
+            />
+            <div
+              style={{
+                fontSize: "12px",
+                fontWeight: 300,
+                opacity: 0.75,
+                lineHeight: 1.5,
+              }}
+            >
+              {body.desc}
+            </div>
+          </div>
+        </div>
+      </Html>
+    </group>
   );
 }
 
