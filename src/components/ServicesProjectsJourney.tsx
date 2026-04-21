@@ -7,6 +7,14 @@ import { useMouseParallaxRef } from "@/hooks/useMouseParallax";
 
 const ServicesNebula = lazy(() => import("@/components/ServicesNebula"));
 
+// Project imagery (renderizadas como cards en 3D durante el Acto II)
+import imgNebulaOS from "@/assets/projects/nebula-os.jpg";
+import imgAuroraCommerce from "@/assets/projects/aurora-commerce.jpg";
+import imgPulsarStudio from "@/assets/projects/pulsar-studio.jpg";
+import imgQuantumBank from "@/assets/projects/quantum-bank.jpg";
+import imgHeliosHealth from "@/assets/projects/helios-health.jpg";
+import imgCosmosTravel from "@/assets/projects/cosmos-travel.jpg";
+
 // ============================================================
 // DATA
 // ============================================================
