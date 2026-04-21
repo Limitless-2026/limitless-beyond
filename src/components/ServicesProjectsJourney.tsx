@@ -734,18 +734,6 @@ function Scene({
           cameraYaw={cameraYawRef.current}
         />
       ))}
-      {/* Cards 3D: Acto II (proyectos) */}
-      {PROJECTS.map((b, i) => (
-        <ProjectCard
-          key={`c-${b.id}`}
-          body={b}
-          index={i}
-          progress={progress}
-          cameraPos={cameraPosVec.current}
-          cameraYaw={cameraYawRef.current}
-          isActive={lastActiveIdRef.current === b.id}
-        />
-      ))}
     </>
   );
 }
