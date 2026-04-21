@@ -22,16 +22,8 @@ const HeroWebGLV2 = lazy(() => import("@/components/HeroWebGLV2"));
 const V6 = () => {
   const [useWebGL, setUseWebGL] = useState<boolean | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
-  const [showPreloader, setShowPreloader] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return sessionStorage.getItem("limitless:visited") !== "1";
-  });
-
-  useEffect(() => {
-    if (showPreloader && typeof window !== "undefined") {
-      sessionStorage.setItem("limitless:visited", "1");
-    }
-  }, [showPreloader]);
+  // Preloader: en V6 lo mostramos SIEMPRE (sin sessionStorage gate)
+  const [showPreloader, setShowPreloader] = useState(true);
 
   useEffect(() => {
     setUseWebGL(isWebGLAvailable());
