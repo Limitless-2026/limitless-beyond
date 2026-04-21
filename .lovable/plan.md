@@ -1,52 +1,72 @@
 
 
-# Plan: Mejorar legibilidad del hero y demorar la entrada de proyectos
+# Plan: Limpiar la transición al espacio de proyectos
 
-## 1. Oscurecer el fondo detrás del texto (legibilidad)
+El problema en las capturas:
+1. El texto del hero ("LIMITLESS", "Bienvenido al otro lado", subtítulos) sigue visible cuando ya empezaron a aparecer las cards de proyectos.
+2. Cuando termina el hero (destello blanco) y se entra al "vacío estelar", queda un fondo plano sin vida — la nebulosa desaparece de golpe pero las estrellas no toman el relevo.
+3. Al scrollear rápido, la falta de un sistema de capas continuo hace que se vea un "salto" entre el final del hero y el inicio de los proyectos.
 
-**`src/pages/V2.tsx`** — Agregar un overlay oscuro que vive sobre la nebulosa pero debajo del texto, con un radial-gradient que oscurece el centro donde están los títulos sin tapar el "halo" exterior de la estrella.
+## 1. Ocultar el texto del hero antes de que entren los proyectos
 
-```tsx
-<div
-  className="fixed inset-0 pointer-events-none z-[5]"
-  style={{
-    background:
-      "radial-gradient(ellipse 60% 50% at 50% 50%, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 40%, rgba(0,0,0,0) 75%)",
-    opacity: 1 - scrollProgress * 0.6, // se desvanece cuando entrás al espacio negro
-  }}
-/>
-```
+**`src/pages/V2.tsx`**
 
-- `z-[5]` queda sobre el canvas (fixed inset-0) y debajo del texto (`z-10`).
-- Se atenúa con el scroll para no oscurecer la transición al starfield negro.
+- Envolver toda la capa de texto fija (`fixed inset-0 ... z-10`) en un contenedor con `opacity` y `visibility` controlados por `scrollProgress`:
+  - Cuando `scrollProgress > 0.85` → opacidad de la capa = 0 y `pointer-events: none` ya estaba.
+  - Cuando `scrollProgress > 0.92` → `visibility: hidden` para que ni siquiera ocupe stacking context y no haya riesgo de que el "LIMITLESS" tape las cards.
+- Recortar `endOpacity` para que "LIMITLESS" llegue a 1 antes (en `scrollProgress ~ 0.78`) y empiece a desvanecerse rápido entre `0.85` y `0.92`, antes del spacer negro.
+- También bajar el badge "Limitless · v2" del top-left durante el tramo de proyectos (opacidad sigue scrollProgress > 0.95 → 0).
 
-## 2. Reforzar contraste del texto
+## 2. Reemplazar el spacer negro plano por un campo de estrellas con parallax
 
-**`src/pages/V2.tsx`** — Sobre los tres bloques de texto:
+**Nuevo componente: `src/components/StarfieldParallax.tsx`**
 
-- **"Los límites están para romperse"**: agregar `text-shadow` sutil (`0 2px 30px rgba(0,0,0,0.6)`) y subir el degradado del italic a colores más claros (de violeta saturado a blanco hueso) para que destaque sobre rosa/magenta.
-- **Subtítulos** (`text-foreground/60` → `text-foreground/85`) — más opacos.
-- **"No hay fronteras..."**: el texto principal pasa de `font-extralight` con bajo contraste a un `text-foreground/90` con `text-shadow` y el `<em>` con gradiente blanco→violeta (no violeta→violeta).
+- Componente `position: fixed inset-0 z-0` con tres capas SVG/canvas de estrellas:
+  - **Capa lejana**: muchas estrellas pequeñas (1px), opacidad baja, se mueve lento con scroll (`translateY(scroll * -0.05)`).
+  - **Capa media**: estrellas 1.5–2px, opacidad media (`scroll * -0.15`).
+  - **Capa cercana**: pocas estrellas 2–3px brillantes con leve halo violeta, se mueve rápido (`scroll * -0.35`).
+- Cada estrella tiene un parpadeo sutil con `animation` CSS (twinkle 3–6s, opacity 0.3 → 1).
+- Las posiciones se generan una sola vez con `useMemo` (semilla fija) para evitar saltos en re-renders.
+- El componente solo se vuelve visible cuando `scrollProgress > 0.78` (lo recibe por prop o lee scroll global), con un fade-in de 200vh.
 
-## 3. Demorar la aparición de los proyectos
+**`src/pages/V2.tsx`**
 
-Hoy el spacer del hero es `300vh` y `ProjectsWarp` empieza apenas termina, por eso en la 3ra captura ya se ve un proyecto detrás del bloque "LIMITLESS".
+- Renderizar `<StarfieldParallax visible={scrollProgress > 0.78} />` por encima del WebGL pero por debajo del texto y de las cards.
+- Hacer que la nebulosa WebGL haga fade-out en el último 10% del hero (controlado por `uScroll` ya existente o por `opacity` del `<HeroWebGLV2>` wrapper) para entregarle el escenario al starfield sin que ambos peleen.
 
-**`src/pages/V2.tsx`**:
-- Subir el spacer hero de `300vh` a `420vh` para dar aire después de "LIMITLESS".
-- Agregar un spacer **negro puro** (`bg-black h-[80vh]`) entre el hero y `ProjectsWarp` para asegurar que el usuario quede unos segundos en el espacio vacío antes de que aparezcan las cards.
-- Ajustar el cálculo de `scrollProgress` (`max = window.innerHeight * 2.5` → `* 3.5`) para que las animaciones del hero (incluido "LIMITLESS") se completen y el texto se desvanezca por completo antes de que entre la primera card.
+## 3. Viaje suave de estrellas durante la sección de proyectos
 
-**`src/components/ProjectsWarp.tsx`**:
-- Agregar un buffer interno: la primera card empieza a acercarse recién cuando `progress > 0.3` (en lugar de 0). Esto se logra remapeando `progress` para ignorar el primer 30% del scroll de la sección, dejando un "vacío estelar" antes de que aparezca la primera card.
+**`src/components/ProjectsWarp.tsx`**
 
-## 4. Detalles técnicos
+- Añadir una capa de "warp stars" propia dentro de la sección sticky:
+  - 80–120 estrellas posicionadas aleatoriamente (semilla fija, `useMemo`).
+  - Cada estrella se renderiza como un trazo (`div` con `width: 1px`, `height: 4–12px` según depth, gradiente vertical violeta→transparente).
+  - Su `transform: translate3d(x, y, z)` se anima con el mismo `progress` que las cards: `z = -2200 + (progress * 0.4 + estrella.offset) * 2400`, dándole un loop continuo.
+  - Las estrellas se mueven SIEMPRE (no solo cuando hay card visible) para dar sensación de viaje constante.
+- Esto cubre el caso "scroll rápido": aunque el usuario salte directo, el campo de estrellas viaja por debajo y nunca se ve un fondo muerto.
 
-- No tocamos el shader (`FragmentShaderV2.tsx`) — el problema es de capa UI, no del WebGL.
-- El overlay oscuro respeta el crossfade a starfield: cuando llegamos al espacio negro, ya está atenuado y no oscurece de más.
-- El `text-shadow` se aplica vía `style={{ textShadow: '...' }}` en línea para evitar tocar Tailwind config.
+## 4. Suavizar la transición scroll-rápido
 
-## Archivos a editar
-- `src/pages/V2.tsx` — overlay oscurecedor, contraste del texto, spacers más largos.
-- `src/components/ProjectsWarp.tsx` — buffer inicial antes de la primera card.
+**`src/components/ProjectsWarp.tsx`**
+
+- Aplicar un easing al `progress` con un `requestAnimationFrame` + lerp (factor 0.08) para que el avance del warp no sea 1:1 con el scroll bruto. Resultado: si el usuario tira un scroll fuerte, las cards y estrellas siguen viajando suavemente unas décimas después en vez de teleportarse.
+- Mismo patrón en `V2.tsx` para `scrollProgress` del hero, así el destello blanco final también queda suave.
+
+## 5. Detalles técnicos
+
+- **Z-index final**:
+  - `0` HeroWebGLV2 (fixed)
+  - `1` StarfieldParallax (fixed, fade-in tras hero)
+  - `5` Overlay oscuro radial (ya existe, se mantiene solo en hero)
+  - `10` Capa de texto del hero (se oculta al `scrollProgress > 0.92`)
+  - `10` ProjectsWarp (sticky, mismo nivel pero aparece después en flow)
+  - `50` Badge top-left (se atenúa en proyectos)
+- **Performance**: el starfield parallax usa solo `transform` y `opacity` (compositor GPU). Sin re-render React por scroll: usar `useRef` + manipular `style.transform` directamente en el listener para las capas.
+- **No tocamos el shader** (`FragmentShaderV2.tsx`).
+- **Rutas**: todo el cambio sigue en `/v2`.
+
+## Archivos a tocar
+- `src/components/StarfieldParallax.tsx` — **nuevo**, capas de estrellas con parallax.
+- `src/pages/V2.tsx` — ocultar texto del hero antes de proyectos, montar StarfieldParallax, suavizar scrollProgress.
+- `src/components/ProjectsWarp.tsx` — capa de warp-stars siempre activa, easing de progress.
 
