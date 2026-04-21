@@ -27,20 +27,10 @@ const HamburgerMenu = () => {
       <SheetTrigger asChild>
         <button
           aria-label={open ? "Cerrar menú" : "Abrir menú"}
-          className="fixed top-6 right-6 z-[100] group flex items-center gap-4 px-1 py-2 bg-transparent"
+          className={`fixed top-6 right-6 z-[100] group flex items-center justify-center px-1 py-2 bg-transparent transition-opacity duration-300 ${
+            open ? "opacity-0 pointer-events-none" : "opacity-100"
+          }`}
         >
-          <span
-            className="text-[10px] tracking-[0.4em] uppercase font-light text-foreground/60 group-hover:text-foreground transition-colors duration-300"
-            style={{ fontFamily: "'Arkitech', 'Inter', sans-serif" }}
-          >
-            Menú
-          </span>
-          <span
-            className="text-[10px] tracking-[0.3em] font-light text-foreground/30 group-hover:text-primary/80 transition-colors duration-300"
-            style={{ fontFamily: "'DM Sans', sans-serif" }}
-          >
-            — 03
-          </span>
           <span className="relative flex flex-col items-end justify-center w-[26px] h-[14px]">
             <span
               className={`absolute left-0 right-0 h-px bg-foreground/70 group-hover:bg-foreground transition-all duration-500 ease-out ${
@@ -63,12 +53,10 @@ const HamburgerMenu = () => {
 
       <SheetContent
         side="right"
-        className="hm-sheet !w-full sm:!max-w-[560px] !max-w-none p-0 border-0 overflow-hidden"
+        hideDefaultClose
+        className="hm-sheet !w-full sm:!max-w-[560px] !max-w-none p-0 border-0 overflow-hidden flex flex-col"
         style={{ background: "#08080C" }}
       >
-        <style>{`
-          .hm-sheet > button { display: none !important; }
-        `}</style>
         {/* SVG grain */}
         <svg
           className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.04] mix-blend-overlay"
@@ -117,14 +105,14 @@ const HamburgerMenu = () => {
             fontFamily: "'Arkitech', 'Inter', sans-serif",
           }}
         >
-          <span className="block text-7xl tracking-[0.4em] font-extralight uppercase text-foreground/[0.05] whitespace-nowrap">
+          <span className="block text-5xl tracking-[0.4em] font-extralight uppercase text-foreground/[0.03] whitespace-nowrap">
             Limitless
           </span>
         </div>
 
-        <div className="relative h-full flex flex-col">
+        <div className="relative h-full flex flex-col min-h-0 flex-1">
           {/* Header */}
-          <div className="flex items-start justify-between px-10 pt-10 pb-6">
+          <div className="flex items-start justify-between px-8 pt-8 pb-4 shrink-0">
             <div className="flex items-center gap-3">
               <span
                 aria-hidden
@@ -148,7 +136,7 @@ const HamburgerMenu = () => {
           </div>
 
           {/* Items — right aligned */}
-          <nav className="flex-1 flex flex-col justify-center px-10 pr-12 gap-10">
+          <nav className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-center px-8 pr-10 gap-6 py-4">
             {items.map((item, idx) => {
               const active = location.pathname === item.to;
               return (
@@ -171,12 +159,12 @@ const HamburgerMenu = () => {
                     {item.number}
                   </div>
 
-                  <div className="relative mt-2 flex items-baseline justify-end gap-4">
+                  <div className="relative mt-2 flex items-baseline justify-end gap-3">
                     <span className="text-foreground/0 group-hover:text-foreground/80 text-2xl translate-x-3 group-hover:translate-x-0 transition-all duration-300">
                       ←
                     </span>
                     <span
-                      className={`text-5xl md:text-6xl tracking-[0.18em] uppercase font-extralight leading-none transition-all duration-300 ${
+                      className={`text-4xl md:text-5xl tracking-[0.14em] uppercase font-extralight leading-none transition-all duration-300 ${
                         active
                           ? "bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-transparent"
                           : "text-foreground/90 group-hover:bg-gradient-to-r group-hover:from-foreground group-hover:via-primary group-hover:to-foreground group-hover:bg-clip-text group-hover:text-transparent"
@@ -188,7 +176,7 @@ const HamburgerMenu = () => {
                   </div>
 
                   <div
-                    className="mt-3 text-[10px] tracking-[0.3em] uppercase text-foreground/35 font-light"
+                    className="mt-2 text-[10px] tracking-[0.3em] uppercase text-foreground/35 font-light"
                     style={{ fontFamily: "'DM Sans', sans-serif" }}
                   >
                     {item.desc}
@@ -205,7 +193,7 @@ const HamburgerMenu = () => {
           </nav>
 
           {/* Footer */}
-          <div className="px-10 pb-10 pt-6 border-t border-foreground/10 grid gap-2">
+          <div className="px-8 pb-8 pt-5 border-t border-foreground/10 grid gap-2 shrink-0">
             <div className="flex items-center justify-between">
               <span
                 className="text-[10px] tracking-[0.3em] uppercase text-foreground/40 font-light"
