@@ -310,6 +310,9 @@ function BodyLabel({
   cameraPos: THREE.Vector3;
   cameraYaw: number;
 }) {
+  // Pivote sin texto: no se renderiza label alguno.
+  if (!body.title) return null;
+
   // Direction from camera to body
   const dx = body.position[0] - cameraPos.x;
   const dz = body.position[2] - cameraPos.z;
