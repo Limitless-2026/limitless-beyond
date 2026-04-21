@@ -100,6 +100,12 @@ const CosmicFooter = () => {
       className="relative w-full"
       style={{ height: "180vh" }}
     >
+      <style>{`
+        @keyframes cf-twinkle {
+          0%, 100% { opacity: 0.2; transform: scale(0.8); }
+          50% { opacity: 1; transform: scale(1.2); }
+        }
+      `}</style>
       <div
         className="sticky top-0 left-0 w-full h-screen overflow-hidden bg-background"
         style={{
