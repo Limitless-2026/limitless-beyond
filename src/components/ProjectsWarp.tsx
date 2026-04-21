@@ -31,7 +31,10 @@ const ProjectsWarp = () => {
       const rect = el.getBoundingClientRect();
       const total = el.offsetHeight - window.innerHeight;
       const scrolled = Math.min(Math.max(-rect.top, 0), total);
-      const p = (scrolled / total) * PROJECTS.length;
+      const raw = scrolled / total; // 0..1
+      // Buffer: ignorar el primer 30% para dar un "vacío estelar"
+      const buffered = Math.max(0, (raw - 0.3) / 0.7);
+      const p = buffered * PROJECTS.length;
       setProgress(p);
     };
     onScroll();
