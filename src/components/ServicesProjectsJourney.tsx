@@ -60,7 +60,10 @@ const PROJECTS: Body[] = [
   { id: "p6", number: "06", title: "COSMOS TRAVEL",   desc: "Marketplace · 2025",          position: [-3, -2,  -6], scale: 1.0, color: "#7B2FFF", act: "II" },
 ];
 
-const ALL_BODIES: Body[] = [...SERVICES, PIVOT, ...PROJECTS];
+// ACTO I bodies = servicios + pivote (los que se renderizan como planetas con shader).
+// Los proyectos del ACTO II se renderizan como cards 3D flotantes (HTML transform),
+// NO como cuerpos celestes.
+const ACT_I_BODIES: Body[] = [...SERVICES, PIVOT];
 
 // Fases del viaje
 const ACT_I_END = 0.42;
