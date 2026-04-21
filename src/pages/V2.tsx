@@ -117,7 +117,7 @@ const V2 = () => {
       </div>
 
       {/* Starfield parallax — toma el relevo al final del hero */}
-      <StarfieldParallax visible={scrollProgress > 0.86} />
+      <StarfieldParallax visible={scrollProgress > 0.91} />
 
       <CustomCursor />
 
