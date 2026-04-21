@@ -693,15 +693,28 @@ function Scene({
       <ambientLight intensity={0.3} />
       <AmbientDust />
       <RouteLine progress={progress} />
-      {ALL_BODIES.map((b) => (
+      {/* Planetas: solo Acto I (servicios + pivote magenta) */}
+      {ACT_I_BODIES.map((b) => (
         <Planet key={b.id} body={b} cameraPos={cameraPosVec.current} />
       ))}
-      {ALL_BODIES.map((b) => (
+      {ACT_I_BODIES.map((b) => (
         <BodyLabel
           key={`l-${b.id}`}
           body={b}
           cameraPos={cameraPosVec.current}
           cameraYaw={cameraYawRef.current}
+        />
+      ))}
+      {/* Cards 3D: Acto II (proyectos) */}
+      {PROJECTS.map((b, i) => (
+        <ProjectCard
+          key={`c-${b.id}`}
+          body={b}
+          index={i}
+          progress={progress}
+          cameraPos={cameraPosVec.current}
+          cameraYaw={cameraYawRef.current}
+          isActive={lastActiveIdRef.current === b.id}
         />
       ))}
     </>
