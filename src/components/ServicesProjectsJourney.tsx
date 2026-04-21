@@ -88,18 +88,30 @@ function useStars3D(count: number, seed = 1337): Star3D[] {
     };
     const arr: Star3D[] = [];
     for (let i = 0; i < count; i++) {
-      // Plano ancho (3x viewport) con profundidad variable
+      // Distribución cilíndrica alrededor del observador
+      const angle = rand() * Math.PI * 2;
+      const radius = 350 + rand() * 600;
+      const isBig = rand() > 0.92;
       arr.push({
-        x: (rand() * 2 - 1) * 150, // -150vw .. 150vw
-        y: (rand() * 2 - 1) * 60,  // -60vh .. 60vh
-        z: -200 - rand() * 900,    // alejadas hacia atrás
-        size: rand() < 0.85 ? 1 : 2,
-        alpha: 0.35 + rand() * 0.6,
+        x: Math.sin(angle) * radius,
+        y: (rand() * 2 - 1) * 280,
+        z: -Math.cos(angle) * radius,
+        size: isBig ? 4 + rand() * 6 : 1.5 + rand() * 1.5,
+        alpha: 0.4 + rand() * 0.55,
       });
     }
     return arr;
   }, [count, seed]);
 }
+
+// 6 paneles luminosos verticales distribuidos en cilindro 360°.
+// Sirven como referencia visual fuerte durante el giro de cámara.
+type Panel3D = { angle: number; hue: "v" | "m"; intensity: number };
+const PANELS_3D: Panel3D[] = Array.from({ length: 8 }).map((_, i) => ({
+  angle: (i / 8) * 360,
+  hue: i % 2 === 0 ? "v" : "m",
+  intensity: 0.5 + ((i * 37) % 100) / 250,
+}));
 const ACT_I_BODIES: Body[] = [...SERVICES];
 
 // Fases del viaje
