@@ -690,19 +690,36 @@ const ServicesProjectsJourney = () => {
   const isAct2 = state.act === "II";
   const isTransition = state.act === "transition";
 
+  // Índice del proyecto "activo" según el progreso del overlay 2D
+  const act2Pl = Math.max(
+    -0.1,
+    Math.min(1.1, (progress - INFLEXION_END) / (1 - INFLEXION_END)),
+  );
+  const act2Local = -0.6 + act2Pl * (PROJECTS.length + 0.8);
+  const act2Index = Math.max(
+    0,
+    Math.min(PROJECTS.length - 1, Math.round(act2Local)),
+  );
+  const act2Project = PROJECTS[act2Index];
+
+  // Fade del Canvas 3D durante Acto II (se oculta para dar espacio a las cards)
+  const canvasOpacity =
+    progress < 0.56 ? 1 : progress < 0.62 ? 1 - (progress - 0.56) / 0.06 : 0;
+
   // Overlay labels
   const eyebrowText = isAct2
-    ? "Pruebas · El viaje de vuelta"
+    ? "Pruebas · Atravesando el espacio"
     : isTransition
     ? "Horizonte · Atravesando"
     : "Capacidades · Cosmos 3D";
 
-  const pool = isAct2 ? PROJECTS : SERVICES;
-  const poolSize = pool.length;
-  const activeNumber = state.activeBody.impact
+  const poolSize = isAct2 ? PROJECTS.length : SERVICES.length;
+  const activeNumber = isAct2
+    ? act2Project.number
+    : state.activeBody.impact
     ? "★"
     : state.activeBody.number;
-  const activeTitle = state.activeBody.title;
+  const activeTitle = isAct2 ? act2Project.title : state.activeBody.title;
 
   // Fade overlay text during inflexion
   const overlayOpacity = isTransition
@@ -719,14 +736,26 @@ const ServicesProjectsJourney = () => {
         className="sticky top-0 w-full h-screen overflow-hidden"
         style={{ transform: "translateZ(0)" }}
       >
-        <Canvas
-          dpr={[1, 1.5]}
-          gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
-          camera={{ fov: 55, near: 0.1, far: 200, position: [0, 0, 0] }}
-          style={{ background: "transparent" }}
+        <div
+          className="absolute inset-0"
+          style={{
+            opacity: canvasOpacity,
+            transition: "opacity 200ms linear",
+            visibility: canvasOpacity <= 0.001 ? "hidden" : "visible",
+          }}
         >
-          <Scene progress={progress} onStateChange={setState} />
-        </Canvas>
+          <Canvas
+            dpr={[1, 1.5]}
+            gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+            camera={{ fov: 55, near: 0.1, far: 200, position: [0, 0, 0] }}
+            style={{ background: "transparent" }}
+          >
+            <Scene progress={progress} onStateChange={setState} />
+          </Canvas>
+        </div>
+
+        {/* Overlay 2D de proyectos (estilo V4) — aparece en Acto II */}
+        <ProjectsOverlay progress={progress} />
 
         {/* Flash blanco en la inflexión */}
         <div
