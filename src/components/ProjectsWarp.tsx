@@ -45,9 +45,10 @@ const ProjectsWarp = () => {
       const total = el.offsetHeight - window.innerHeight;
       const scrolled = Math.min(Math.max(-rect.top, 0), total);
       const raw = scrolled / total; // 0..1
-      // Buffer: ignorar el primer 30% para dar un "vacío estelar"
-      const buffered = Math.max(0, (raw - 0.3) / 0.7);
-      target = buffered * PROJECTS.length;
+      // Buffer: arrancamos progress en -1.2 para que ninguna card sea visible
+      // hasta que el usuario realmente esté dentro del rango de scroll.
+      const buffered = Math.max(0, (raw - 0.12) / 0.78);
+      target = -1.2 + buffered * (PROJECTS.length + 1.2);
       if (!raf) raf = requestAnimationFrame(tick);
     };
     onScroll();
@@ -96,8 +97,8 @@ const ProjectsWarp = () => {
             const opacity =
               local < -1.2 ? 0 :
               local < 0   ? Math.max(0, 1 + local * 0.85) :
-              local < 0.7 ? 1 :
-              Math.max(0, 1 - (local - 0.7) * 3);
+              local < 0.55 ? 1 :
+              Math.max(0, 1 - (local - 0.55) * 3.5);
 
             // Pequeño desplazamiento lateral alterno para sensación de vuelo
             const xOffset = i % 2 === 0 ? -120 : 120;
