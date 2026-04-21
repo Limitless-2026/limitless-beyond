@@ -88,8 +88,8 @@ const V2 = () => {
       <div
         className="fixed inset-0"
         style={{
-          opacity: nebulaOpacity,
-          transition: "opacity 200ms linear",
+          opacity: nebulaVisible ? 1 : 0,
+          visibility: nebulaVisible ? "visible" : "hidden",
           background: "rgb(2,1,5)",
         }}
       >
@@ -105,9 +105,18 @@ const V2 = () => {
       </div>
 
       {/* Starfield parallax — toma el relevo al final del hero */}
-      <StarfieldParallax visible={scrollProgress > 0.78} />
+      <StarfieldParallax visible={scrollProgress > 0.86} />
 
       <CustomCursor />
+
+      {/* Flash blanco — cubre el cruce nebulosa→starfield */}
+      <div
+        className="fixed inset-0 pointer-events-none z-[8]"
+        style={{
+          background: "white",
+          opacity: flashOpacity,
+        }}
+      />
 
       {/* Overlay oscurecedor — sobre la nebulosa, debajo del texto */}
       <div
