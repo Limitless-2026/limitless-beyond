@@ -524,7 +524,7 @@ const CosmicFooterV2 = () => {
             style={{
               fontFamily: "Arkitech, system-ui, sans-serif",
               fontWeight: 200,
-              fontSize: "clamp(6rem, 22vw, 22rem)",
+              fontSize: "clamp(4.5rem, 18vw, 14rem)",
               letterSpacing: "0.05em",
               lineHeight: 0.9,
               ...revealStyle(wordmarkP, 80),
@@ -564,7 +564,7 @@ const CosmicFooterV2 = () => {
             className="font-extralight text-foreground"
             style={{
               fontFamily: "Arkitech, system-ui, sans-serif",
-              fontSize: "clamp(4rem, 12vw, 12rem)",
+              fontSize: "clamp(2.6rem, 10vw, 8rem)",
               lineHeight: 0.9,
               letterSpacing: "0.05em",
             }}

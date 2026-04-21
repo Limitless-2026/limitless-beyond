@@ -27,7 +27,7 @@ const HamburgerMenu = () => {
       <SheetTrigger asChild>
         <button
           aria-label={open ? "Cerrar menú" : "Abrir menú"}
-          className={`fixed top-6 right-6 z-[100] group flex items-center justify-center px-1 py-2 bg-transparent transition-opacity duration-300 ${
+          className={`fixed top-4 right-4 sm:top-6 sm:right-6 z-[100] group flex items-center justify-center px-1 py-2 bg-transparent transition-opacity duration-300 ${
             open ? "opacity-0 pointer-events-none" : "opacity-100"
           }`}
         >
@@ -54,7 +54,7 @@ const HamburgerMenu = () => {
       <SheetContent
         side="right"
         hideDefaultClose
-        className="hm-sheet !w-full sm:!max-w-[680px] md:!max-w-[720px] !max-w-none p-0 border-0 overflow-hidden flex flex-col"
+        className="hm-sheet !w-[88%] sm:!w-full sm:!max-w-[560px] md:!max-w-[720px] !max-w-none p-0 border-0 overflow-hidden flex flex-col"
         style={{ background: "#08080C" }}
       >
         {/* SVG grain */}
@@ -105,14 +105,14 @@ const HamburgerMenu = () => {
             fontFamily: "'Arkitech', 'Inter', sans-serif",
           }}
         >
-          <span className="block text-5xl tracking-[0.4em] font-extralight uppercase text-foreground/[0.03] whitespace-nowrap">
+          <span className="hidden xs:block sm:block text-3xl sm:text-5xl tracking-[0.4em] font-extralight uppercase text-foreground/[0.03] whitespace-nowrap">
             Limitless
           </span>
         </div>
 
         <div className="relative h-full flex flex-col min-h-0 flex-1">
           {/* Header */}
-          <div className="flex items-start justify-between px-8 pt-8 pb-4 shrink-0">
+          <div className="flex items-start justify-between px-6 sm:px-8 pt-6 pb-3 sm:pt-8 sm:pb-4 shrink-0">
             <div className="flex items-center gap-3">
               <span
                 aria-hidden
@@ -136,7 +136,7 @@ const HamburgerMenu = () => {
           </div>
 
           {/* Items — right aligned */}
-          <nav className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-center px-8 pr-10 gap-6 py-4">
+          <nav className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-center px-6 sm:px-8 pr-8 sm:pr-10 gap-4 sm:gap-6 py-4">
             {items.map((item, idx) => {
               const active = location.pathname === item.to;
               return (
@@ -151,7 +151,7 @@ const HamburgerMenu = () => {
                   }}
                 >
                   <div
-                    className={`text-[11px] tracking-[0.4em] uppercase font-light transition-all duration-300 group-hover:-translate-x-2 ${
+                    className={`text-[10px] sm:text-[11px] tracking-[0.4em] uppercase font-light transition-all duration-300 group-hover:-translate-x-2 ${
                       active ? "text-[hsl(327_100%_45%)]" : "text-primary/70"
                     }`}
                     style={{ fontFamily: "'DM Sans', sans-serif" }}
@@ -160,11 +160,11 @@ const HamburgerMenu = () => {
                   </div>
 
                   <div className="relative mt-2 flex items-baseline justify-end gap-3">
-                    <span className="text-foreground/0 group-hover:text-foreground/80 text-2xl translate-x-3 group-hover:translate-x-0 transition-all duration-300">
+                    <span className="text-foreground/0 group-hover:text-foreground/80 text-lg sm:text-2xl translate-x-3 group-hover:translate-x-0 transition-all duration-300">
                       ←
                     </span>
                     <span
-                      className={`text-4xl md:text-5xl tracking-[0.14em] uppercase font-extralight leading-none transition-all duration-300 ${
+                      className={`text-2xl sm:text-3xl md:text-5xl tracking-[0.14em] uppercase font-extralight leading-none transition-all duration-300 ${
                         active
                           ? "bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-transparent"
                           : "text-foreground/90 group-hover:bg-gradient-to-r group-hover:from-foreground group-hover:via-primary group-hover:to-foreground group-hover:bg-clip-text group-hover:text-transparent"
@@ -193,8 +193,8 @@ const HamburgerMenu = () => {
           </nav>
 
           {/* Footer */}
-          <div className="px-8 pb-8 pt-5 border-t border-foreground/10 grid gap-2 shrink-0">
-            <div className="flex items-center justify-between">
+          <div className="px-6 sm:px-8 pb-6 sm:pb-8 pt-4 sm:pt-5 border-t border-foreground/10 grid gap-2 shrink-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
               <span
                 className="text-[10px] tracking-[0.3em] uppercase text-foreground/40 font-light"
                 style={{ fontFamily: "'DM Sans', sans-serif" }}
@@ -208,7 +208,7 @@ const HamburgerMenu = () => {
                 hola@limitless.studio
               </span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
               <span
                 className="text-[10px] tracking-[0.3em] uppercase text-foreground/25 font-light"
                 style={{ fontFamily: "'DM Sans', sans-serif" }}

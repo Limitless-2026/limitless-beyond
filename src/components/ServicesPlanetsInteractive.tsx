@@ -109,6 +109,17 @@ const Planet = ({ service, basePos, size, phase, pointer, onSelect, exploding }:
     return c;
   }, [service.color]);
 
+  // Magnetic radius (responsive — shorter on mobile/touch)
+  const [magneticRadius, setMagneticRadius] = useState(
+    typeof window !== "undefined" && window.innerWidth < 768 ? 110 : 180,
+  );
+  useEffect(() => {
+    const onResize = () =>
+      setMagneticRadius(window.innerWidth < 768 ? 110 : 180);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   useFrame((state, delta) => {
     if (!groupRef.current) return;
     const t = state.clock.getElapsedTime();
@@ -125,7 +136,7 @@ const Planet = ({ service, basePos, size, phase, pointer, onSelect, exploding }:
     const dx = pointer.x - screenX;
     const dy = pointer.y - screenY;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    const radius = 180;
+    const radius = magneticRadius;
     const near = dist < radius;
 
     if (near !== hover) setHover(near);
@@ -329,15 +340,36 @@ const Scene = ({
   onSelect: (s: Service) => void;
   exploding: string | null;
 }) => {
-  // Organic positions distributed across viewport
-  const layout: { pos: [number, number, number]; size: number }[] = [
-    { pos: [-3.6, 1.4, 0], size: 0.78 },
-    { pos: [-1.0, 1.9, 0], size: 0.62 },
-    { pos: [2.6, 1.5, 0], size: 0.85 },
-    { pos: [-2.6, -1.2, 0], size: 0.68 },
-    { pos: [0.6, -1.7, 0], size: 0.92 },
-    { pos: [3.4, -1.0, 0], size: 0.7 },
-  ];
+  const { camera, size } = useThree();
+  const isMobile = size.width < 768;
+
+  // Two layouts: organic horizontal (desktop) vs compact 2x3 vertical (mobile)
+  const layout: { pos: [number, number, number]; size: number }[] = isMobile
+    ? [
+        { pos: [-1.6, 2.4, 0], size: 0.62 },
+        { pos: [1.6, 2.4, 0], size: 0.7 },
+        { pos: [-1.6, 0.1, 0], size: 0.55 },
+        { pos: [1.6, 0.1, 0], size: 0.68 },
+        { pos: [-1.6, -2.2, 0], size: 0.62 },
+        { pos: [1.6, -2.2, 0], size: 0.58 },
+      ]
+    : [
+        { pos: [-3.6, 1.4, 0], size: 0.78 },
+        { pos: [-1.0, 1.9, 0], size: 0.62 },
+        { pos: [2.6, 1.5, 0], size: 0.85 },
+        { pos: [-2.6, -1.2, 0], size: 0.68 },
+        { pos: [0.6, -1.7, 0], size: 0.92 },
+        { pos: [3.4, -1.0, 0], size: 0.7 },
+      ];
+
+  // Adjust camera distance per viewport
+  useEffect(() => {
+    const targetZ = isMobile ? 9 : 7;
+    if (Math.abs(camera.position.z - targetZ) > 0.01) {
+      camera.position.z = targetZ;
+      camera.updateProjectionMatrix();
+    }
+  }, [isMobile, camera]);
 
   return (
     <>
@@ -418,13 +450,13 @@ const ServicesPlanetsInteractive = () => {
       />
 
       {/* Header */}
-      <div className="relative z-10 px-6 md:px-12 lg:px-20 pt-24 md:pt-32 pointer-events-none">
+      <div className="relative z-10 px-6 md:px-12 lg:px-20 pt-20 md:pt-32 pointer-events-none">
         <p className="text-[10px] md:text-xs tracking-[0.4em] uppercase text-primary mb-6 font-light">
           Servicios · 06
         </p>
         <h2
           className="font-extralight tracking-[0.06em] uppercase leading-[0.92] text-foreground max-w-4xl"
-          style={{ fontSize: "clamp(2rem, 6vw, 4.5rem)" }}
+          style={{ fontSize: "clamp(1.6rem, 7vw, 4.5rem)" }}
         >
           El universo
           <br />
@@ -455,7 +487,7 @@ const ServicesPlanetsInteractive = () => {
       </div>
 
       {/* Hint */}
-      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 pointer-events-none text-center">
+      <div className="absolute bottom-6 sm:bottom-10 left-1/2 -translate-x-1/2 z-10 pointer-events-none text-center">
         <p
           className="text-[10px] md:text-xs tracking-[0.4em] uppercase text-foreground/45 font-light"
           style={{ fontFamily: "'DM Sans', sans-serif" }}
