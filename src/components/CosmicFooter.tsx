@@ -111,7 +111,7 @@ const CosmicFooter = () => {
     <section
       ref={sectionRef}
       className="relative w-full"
-      style={{ height: "180vh" }}
+      style={{ height: "280vh" }}
     >
       <style>{`
         @keyframes cf-twinkle {
