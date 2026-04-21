@@ -54,7 +54,7 @@ const HamburgerMenu = () => {
       <SheetContent
         side="right"
         hideDefaultClose
-        className="hm-sheet !w-full sm:!max-w-[560px] !max-w-none p-0 border-0 overflow-hidden flex flex-col"
+        className="hm-sheet !w-full sm:!max-w-[680px] md:!max-w-[720px] !max-w-none p-0 border-0 overflow-hidden flex flex-col"
         style={{ background: "#08080C" }}
       >
         {/* SVG grain */}
