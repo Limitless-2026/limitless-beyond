@@ -23,7 +23,6 @@ const Preloader = ({ onDone }: Props) => {
   const [textIdx, setTextIdx] = useState(0);
   const [exiting, setExiting] = useState(false);
   const [flash, setFlash] = useState(false);
-  const startedRef = useRef(false);
 
   const reduced = useMemo(
     () =>
@@ -46,23 +45,22 @@ const Preloader = ({ onDone }: Props) => {
 
   // Progress driver (eased: fast → slow, hangs near end)
   useEffect(() => {
-    if (startedRef.current) return;
-    startedRef.current = true;
-
     if (reduced) {
-      const t = setTimeout(() => {
+      const timers: number[] = [];
+      timers.push(window.setTimeout(() => {
         setProgress(100);
-        setTimeout(() => {
+        timers.push(window.setTimeout(() => {
           setExiting(true);
-          setTimeout(onDone, 400);
+          timers.push(window.setTimeout(onDone, 400));
         }, 200);
-      }, 600);
-      return () => clearTimeout(t);
+      }, 600));
+      return () => timers.forEach(clearTimeout);
     }
 
     const start = performance.now();
     const total = 2200; // ms
     let raf = 0;
+    const timers: number[] = [];
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / total);
       // Eased: rapid early, hang near 0.95
@@ -70,18 +68,21 @@ const Preloader = ({ onDone }: Props) => {
         t < 0.85
           ? 1 - Math.pow(1 - t / 0.85, 2.2) // ease-out
           : 0.96 + (t - 0.85) * (0.04 / 0.15); // last 15% creeps
-      setProgress(Math.min(100, Math.round(eased * 100)));
+      setProgress(Math.max(0, Math.min(100, Math.round(eased * 100))));
       if (t < 1) raf = requestAnimationFrame(tick);
       else {
         setProgress(100);
         setFlash(true);
-        setTimeout(() => setFlash(false), 120);
-        setTimeout(() => setExiting(true), 220);
-        setTimeout(onDone, 220 + 1100);
+        timers.push(window.setTimeout(() => setFlash(false), 120));
+        timers.push(window.setTimeout(() => setExiting(true), 220));
+        timers.push(window.setTimeout(onDone, 220 + 1100));
       }
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      timers.forEach(clearTimeout);
+    };
   }, [onDone, reduced]);
 
   // Rotating text
