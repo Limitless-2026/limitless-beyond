@@ -1,4 +1,4 @@
-import { useRef, useMemo, useState, Suspense, lazy } from "react";
+import { useRef, useMemo, useState, useEffect, Suspense, lazy } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Html, Line, Points, PointMaterial } from "@react-three/drei";
 import * as THREE from "three";
@@ -174,19 +174,25 @@ function Planet({
   cameraPos,
   serviceMeta,
   onSelect,
+  pointerRef,
 }: {
   body: Body;
   cameraPos: THREE.Vector3;
   serviceMeta?: ServiceMeta;
   onSelect?: (s: ServiceMeta) => void;
+  pointerRef?: React.MutableRefObject<{ x: number; y: number; active: boolean }>;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const glowRef = useRef<THREE.Mesh>(null);
+  const groupRef = useRef<THREE.Group>(null);
   const matRef = useRef<THREE.ShaderMaterial>(null);
   const atmoMatRef = useRef<THREE.ShaderMaterial>(null);
   const ringRef = useRef<THREE.Mesh>(null);
   const hoverLerp = useRef(0);
+  const magneticOffset = useRef(new THREE.Vector3());
+  const tmpVec = useRef(new THREE.Vector3());
   const [hover, setHover] = useState(false);
+  const { camera, size } = useThree();
 
   const uniforms = useMemo(
     () => ({
@@ -211,7 +217,48 @@ function Planet({
 
   useFrame((state, delta) => {
     if (matRef.current) matRef.current.uniforms.uTime.value += delta;
-    hoverLerp.current += ((hover ? 1 : 0) - hoverLerp.current) * 0.12;
+
+    // ── Magnetic effect (only for interactive service planets) ──
+    let nearPointer = false;
+    if (serviceMeta && pointerRef?.current.active) {
+      // Project the planet's world position to screen space
+      tmpVec.current.set(
+        body.position[0] + magneticOffset.current.x,
+        body.position[1] + magneticOffset.current.y,
+        body.position[2] + magneticOffset.current.z,
+      );
+      tmpVec.current.project(camera);
+      const screenX = (tmpVec.current.x * 0.5 + 0.5) * size.width;
+      const screenY = (-tmpVec.current.y * 0.5 + 0.5) * size.height;
+      const dx = pointerRef.current.x - screenX;
+      const dy = pointerRef.current.y - screenY;
+      const dist = Math.hypot(dx, dy);
+      const radius = 220;
+      nearPointer = dist < radius;
+      const pull = nearPointer ? Math.max(0, 1 - dist / radius) : 0;
+      // Convert screen delta → world offset (depth-aware)
+      const depth = Math.abs(camera.position.z - body.position[2]) || 1;
+      const worldPerPx = (2 * depth * Math.tan((((camera as THREE.PerspectiveCamera).fov || 55) * Math.PI) / 360)) / size.height;
+      const maxOffset = 0.9;
+      const targetX = THREE.MathUtils.clamp(dx * worldPerPx * pull * 0.55, -maxOffset, maxOffset);
+      const targetY = THREE.MathUtils.clamp(-dy * worldPerPx * pull * 0.55, -maxOffset, maxOffset);
+      magneticOffset.current.x += (targetX - magneticOffset.current.x) * 0.14;
+      magneticOffset.current.y += (targetY - magneticOffset.current.y) * 0.14;
+    } else {
+      magneticOffset.current.x *= 0.9;
+      magneticOffset.current.y *= 0.9;
+    }
+
+    if (groupRef.current) {
+      groupRef.current.position.set(
+        body.position[0] + magneticOffset.current.x,
+        body.position[1] + magneticOffset.current.y,
+        body.position[2],
+      );
+    }
+
+    const wantHover = hover || nearPointer;
+    hoverLerp.current += ((wantHover ? 1 : 0) - hoverLerp.current) * 0.12;
     if (matRef.current) matRef.current.uniforms.uHover.value = hoverLerp.current;
     if (atmoMatRef.current) atmoMatRef.current.uniforms.uHover.value = hoverLerp.current;
     if (meshRef.current) {
@@ -260,7 +307,7 @@ function Planet({
   };
 
   return (
-    <group position={body.position}>
+    <group ref={groupRef} position={body.position}>
       <mesh ref={glowRef}>
         <sphereGeometry args={[1, 32, 32]} />
         <meshBasicMaterial
@@ -628,10 +675,12 @@ function Scene({
   progress,
   onStateChange,
   onSelectService,
+  pointerRef,
 }: {
   progress: number;
   onStateChange: (s: SceneState) => void;
   onSelectService: (s: ServiceMeta) => void;
+  pointerRef: React.MutableRefObject<{ x: number; y: number; active: boolean }>;
 }) {
   const { camera } = useThree();
   const mouse = useMouseParallaxRef();
@@ -752,6 +801,7 @@ function Scene({
             cameraPos={cameraPosVec.current}
             serviceMeta={meta}
             onSelect={onSelectService}
+            pointerRef={pointerRef}
           />
         );
       })}
@@ -790,6 +840,38 @@ const ServicesProjectsJourneyV6 = () => {
   });
   const [webgl] = useState(() => isWebGLAvailable());
   const [selectedService, setSelectedService] = useState<ServiceMeta | null>(null);
+  const pointerRef = useRef({ x: -9999, y: -9999, active: false });
+
+  // Track pointer in section-local coordinates for magnetic effect
+  useEffect(() => {
+    const handle = (e: PointerEvent) => {
+      const el = sectionRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const inside =
+        e.clientY >= 0 &&
+        e.clientY <= window.innerHeight &&
+        rect.top <= 0 &&
+        rect.bottom >= window.innerHeight;
+      if (inside) {
+        pointerRef.current.x = e.clientX - rect.left;
+        // Section is sticky-pinned, so visible viewport top = max(0, -rect.top)
+        pointerRef.current.y = e.clientY - Math.max(0, rect.top);
+        pointerRef.current.active = true;
+      } else {
+        pointerRef.current.active = false;
+      }
+    };
+    const onLeave = () => {
+      pointerRef.current.active = false;
+    };
+    window.addEventListener("pointermove", handle);
+    window.addEventListener("pointerleave", onLeave);
+    return () => {
+      window.removeEventListener("pointermove", handle);
+      window.removeEventListener("pointerleave", onLeave);
+    };
+  }, []);
 
   if (!webgl) {
     return (
@@ -876,6 +958,7 @@ const ServicesProjectsJourneyV6 = () => {
               progress={progress}
               onStateChange={setState}
               onSelectService={setSelectedService}
+              pointerRef={pointerRef}
             />
           </Canvas>
         </div>
