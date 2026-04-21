@@ -69,45 +69,6 @@ const ProjectsWarp = () => {
         className="sticky top-0 left-0 w-full h-screen overflow-hidden flex items-center justify-center"
         style={{ perspective: "1200px", perspectiveOrigin: "50% 50%" }}
       >
-        {/* Warp stars — siempre viajando, dan vida al fondo */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{ perspective: "1200px", transformStyle: "preserve-3d" }}
-        >
-          <div
-            className="absolute top-1/2 left-1/2 w-0 h-0"
-            style={{ transformStyle: "preserve-3d" }}
-          >
-            {warpStars.map((s, i) => {
-              // loop continuo de z: cada estrella tiene su offset depth
-              const cycle = (warpTime + s.depth + progress * 0.05) % 1;
-              const z = -2400 + cycle * 2600; // -2400..200
-              const opacity =
-                cycle < 0.05 ? cycle / 0.05 :
-                cycle > 0.92 ? Math.max(0, (1 - cycle) / 0.08) :
-                1;
-              return (
-                <span
-                  key={i}
-                  className="absolute block"
-                  style={{
-                    left: `${s.x}vw`,
-                    top: `${s.y}vh`,
-                    width: "1.5px",
-                    height: `${s.length}px`,
-                    background: s.hueShift > 0.5
-                      ? "linear-gradient(to bottom, hsl(var(--primary) / 0.9), transparent)"
-                      : "linear-gradient(to bottom, hsl(var(--foreground) / 0.85), transparent)",
-                    transform: `translate3d(0, 0, ${z}px)`,
-                    opacity: opacity * 0.85,
-                    willChange: "transform, opacity",
-                  }}
-                />
-              );
-            })}
-          </div>
-        </div>
-
         {/* Heading */}
         <div className="absolute top-10 left-0 w-full text-center pointer-events-none z-20">
           <p className="text-[10px] md:text-xs tracking-[0.4em] uppercase text-foreground/50 font-light">
