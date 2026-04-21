@@ -4,7 +4,7 @@ import ProjectsWarp from "@/components/ProjectsWarp";
 import StarfieldParallax from "@/components/StarfieldParallax";
 import ServicesOrbit from "@/components/ServicesOrbit";
 import AboutConstellation from "@/components/AboutConstellation";
-import PortalCTA from "@/components/PortalCTA";
+import CosmicFooter from "@/components/CosmicFooter";
 
 function isWebGLAvailable(): boolean {
   try {
@@ -18,7 +18,7 @@ function isWebGLAvailable(): boolean {
 
 const HeroWebGLV2 = lazy(() => import("@/components/HeroWebGLV2"));
 
-const V2 = () => {
+const V3 = () => {
   const [useWebGL, setUseWebGL] = useState<boolean | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
 
@@ -59,7 +59,6 @@ const V2 = () => {
     };
   }, []);
 
-  // Helper: rampa con ventanas duras (0 fuera de rango)
   const fadeInOut = (
     p: number,
     inStart: number,
@@ -73,40 +72,30 @@ const V2 = () => {
     return 1 - (p - outStart) / (outEnd - outStart);
   };
 
-  // Bloque 1 — "Los límites están para romperse"
-  // Aparece de entrada (opacidad 1 desde 0), queda fija, y desaparece entre 0.18 y 0.30
   const heroOpacity = fadeInOut(scrollProgress, -0.01, 0, 0.18, 0.30);
   const heroScale = 1 + scrollProgress * 0.6;
   const heroBlur = Math.min(8, scrollProgress * 8);
   const subOpacity = heroOpacity;
 
-  // Bloque 2 — "No hay fronteras..."
   const midShow = fadeInOut(scrollProgress, 0.32, 0.42, 0.55, 0.65);
-
-  // Bloque 3 — "Bienvenido al otro lado / LIMITLESS" — queda fijo durante el destello
   const endOpacity = fadeInOut(scrollProgress, 0.68, 0.78, 0.95, 0.99);
 
-  // Capa de texto del hero — se desmonta recién después de que el destello terminó
   const heroLayerOpacity =
     scrollProgress < 0.95 ? 1 : Math.max(0, 1 - (scrollProgress - 0.95) * 50);
   const heroLayerHidden = scrollProgress > 0.97;
 
-  // Nebulosa WebGL — acompaña hasta que el destello la tape
   const nebulaVisible = scrollProgress < 0.89;
 
-  // Flash blanco — empieza 0.86, pico 0.91, termina 0.96
   const flashCenter = 0.91;
   const flashWidth = 0.05;
   const flashD = Math.abs(scrollProgress - flashCenter);
   const flashOpacity = flashD < flashWidth ? Math.pow(1 - flashD / flashWidth, 1.6) : 0;
 
-  // Badge top-left — se atenúa al entrar en proyectos
   const badgeOpacity =
     scrollProgress < 0.92 ? 1 : Math.max(0, 1 - (scrollProgress - 0.92) * 15);
 
   return (
     <div className="relative bg-background text-foreground">
-      {/* Cosmic background — fixed, infinite */}
       <div
         className="fixed inset-0"
         style={{
@@ -126,21 +115,15 @@ const V2 = () => {
         )}
       </div>
 
-      {/* Starfield parallax — toma el relevo al final del hero */}
       <StarfieldParallax visible={scrollProgress > 0.91} />
 
       <CustomCursor />
 
-      {/* Flash blanco — cubre el cruce nebulosa→starfield */}
       <div
         className="fixed inset-0 pointer-events-none z-[8]"
-        style={{
-          background: "white",
-          opacity: flashOpacity,
-        }}
+        style={{ background: "white", opacity: flashOpacity }}
       />
 
-      {/* Overlay oscurecedor — sobre la nebulosa, debajo del texto */}
       <div
         className="fixed inset-0 pointer-events-none z-[5]"
         style={{
@@ -150,13 +133,12 @@ const V2 = () => {
         }}
       />
 
-      {/* Top-left v2 badge */}
       <div
         className="fixed top-6 left-6 z-50 pointer-events-none"
         style={{ opacity: badgeOpacity, transition: "opacity 200ms linear" }}
       >
         <span className="text-[10px] tracking-[0.4em] uppercase text-foreground/50 font-light">
-          Limitless · v2
+          Limitless · v3
         </span>
       </div>
 
@@ -272,32 +254,18 @@ const V2 = () => {
       </div>
 
       <div className="relative z-0 h-[420vh]" />
-
-      {/* Vacío estelar entre el hero y los proyectos */}
       <div className="relative z-0 h-[80vh] bg-black" />
 
-      {/* Servicios — órbitas cósmicas */}
       <ServicesOrbit />
-
-      {/* Projects — warp flythrough */}
       <ProjectsWarp />
 
-      {/* Spacer entre Proyectos y Sobre Limitless */}
       <div className="h-[20vh]" />
-
-      {/* Sobre Limitless — constelación manifiesto */}
       <AboutConstellation />
 
-      {/* Spacer entre Sobre y Umbral */}
-      <div className="h-[20vh]" />
-
-      {/* Umbral — portal de contacto */}
-      <PortalCTA />
-
-      {/* Spacer final antes del footer */}
-      <div className="h-[20vh]" />
+      {/* Footer agresivo — scroll-in estilo NK / Awwwards */}
+      <CosmicFooter />
     </div>
   );
 };
 
-export default V2;
+export default V3;
