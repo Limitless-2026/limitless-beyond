@@ -5,6 +5,7 @@ import StarfieldParallax from "@/components/StarfieldParallax";
 import ServicesProjectsJourney from "@/components/ServicesProjectsJourney";
 import AboutConstellation from "@/components/AboutConstellation";
 import CosmicFooterV2 from "@/components/CosmicFooterV2";
+import Preloader from "@/components/Preloader";
 
 function isWebGLAvailable(): boolean {
   try {
@@ -21,6 +22,16 @@ const HeroWebGLV2 = lazy(() => import("@/components/HeroWebGLV2"));
 const V5 = () => {
   const [useWebGL, setUseWebGL] = useState<boolean | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [showPreloader, setShowPreloader] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return sessionStorage.getItem("limitless:visited") !== "1";
+  });
+
+  useEffect(() => {
+    if (showPreloader && typeof window !== "undefined") {
+      sessionStorage.setItem("limitless:visited", "1");
+    }
+  }, [showPreloader]);
 
   useEffect(() => {
     setUseWebGL(isWebGLAvailable());
@@ -96,6 +107,7 @@ const V5 = () => {
 
   return (
     <div className="relative bg-background text-foreground">
+      {showPreloader && <Preloader onDone={() => setShowPreloader(false)} />}
       <div
         className="fixed inset-0"
         style={{
