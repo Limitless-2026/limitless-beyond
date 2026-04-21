@@ -68,7 +68,12 @@ const ProjectsWarp = () => {
       {/* Sticky stage — la perspectiva 3D vive aquí */}
       <div
         className="sticky top-0 left-0 w-full h-screen overflow-hidden flex items-center justify-center"
-        style={{ perspective: "1200px", perspectiveOrigin: "50% 50%" }}
+        style={{
+          perspective: "1200px",
+          perspectiveOrigin: "50% 50%",
+          contain: "layout paint",
+          transform: "translateZ(0)",
+        }}
       >
         {/* Heading */}
         <div
@@ -126,6 +131,7 @@ const ProjectsWarp = () => {
                   transform: `translate3d(${xOffset}px, ${yOffset}px, ${z}px)`,
                   opacity,
                   visibility: visible ? "visible" : "hidden",
+                  pointerEvents: visible ? "auto" : "none",
                   transformStyle: "preserve-3d",
                   willChange: "transform, opacity",
                 }}
