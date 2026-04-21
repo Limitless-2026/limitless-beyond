@@ -88,18 +88,30 @@ function useStars3D(count: number, seed = 1337): Star3D[] {
     };
     const arr: Star3D[] = [];
     for (let i = 0; i < count; i++) {
-      // Plano ancho (3x viewport) con profundidad variable
+      // Distribución cilíndrica alrededor del observador
+      const angle = rand() * Math.PI * 2;
+      const radius = 350 + rand() * 600;
+      const isBig = rand() > 0.92;
       arr.push({
-        x: (rand() * 2 - 1) * 150, // -150vw .. 150vw
-        y: (rand() * 2 - 1) * 60,  // -60vh .. 60vh
-        z: -200 - rand() * 900,    // alejadas hacia atrás
-        size: rand() < 0.85 ? 1 : 2,
-        alpha: 0.35 + rand() * 0.6,
+        x: Math.sin(angle) * radius,
+        y: (rand() * 2 - 1) * 280,
+        z: -Math.cos(angle) * radius,
+        size: isBig ? 4 + rand() * 6 : 1.5 + rand() * 1.5,
+        alpha: 0.4 + rand() * 0.55,
       });
     }
     return arr;
   }, [count, seed]);
 }
+
+// 6 paneles luminosos verticales distribuidos en cilindro 360°.
+// Sirven como referencia visual fuerte durante el giro de cámara.
+type Panel3D = { angle: number; hue: "v" | "m"; intensity: number };
+const PANELS_3D: Panel3D[] = Array.from({ length: 8 }).map((_, i) => ({
+  angle: (i / 8) * 360,
+  hue: i % 2 === 0 ? "v" : "m",
+  intensity: 0.5 + ((i * 37) % 100) / 250,
+}));
 const ACT_I_BODIES: Body[] = [...SERVICES];
 
 // Fases del viaje
@@ -793,7 +805,9 @@ const ServicesProjectsJourney = () => {
     : 1;
 
   // Estrellas 3D para el pan de cámara con perspectiva.
-  const stars3D = useStars3D(160, 1337);
+  const stars3D = useStars3D(320, 1337);
+  // Motion blur dinámico durante el pico del giro
+  const blurAmount = Math.sin(turnT * Math.PI) * 5;
 
   return (
     <section
@@ -832,7 +846,7 @@ const ServicesProjectsJourney = () => {
             className="pointer-events-none absolute inset-0 z-[12] overflow-hidden"
             style={{
               opacity: turnFade,
-              perspective: "1200px",
+              perspective: "800px",
               perspectiveOrigin: "50% 50%",
             }}
           >
@@ -842,9 +856,79 @@ const ServicesProjectsJourney = () => {
                 transformStyle: "preserve-3d",
                 // rotateY negativo = cámara gira a la derecha (el mundo pasa a la izquierda)
                 transform: `rotateY(${-turnYaw}deg)`,
+                filter: `blur(${blurAmount}px)`,
                 willChange: "transform",
               }}
             >
+              {/* Paneles luminosos verticales 360° — referencia visual del giro */}
+              {PANELS_3D.map((p, i) => {
+                const rad = (p.angle * Math.PI) / 180;
+                const radius = 600;
+                const x = Math.sin(rad) * radius;
+                const z = -Math.cos(rad) * radius;
+                const colorA =
+                  p.hue === "v"
+                    ? `rgba(123,47,255,${0.55 * p.intensity})`
+                    : `rgba(200,0,122,${0.55 * p.intensity})`;
+                const colorB =
+                  p.hue === "v"
+                    ? `rgba(123,47,255,0)`
+                    : `rgba(200,0,122,0)`;
+                return (
+                  <div
+                    key={`panel-${i}`}
+                    className="absolute top-1/2 left-1/2"
+                    style={{
+                      width: "180px",
+                      height: "85vh",
+                      marginLeft: "-90px",
+                      marginTop: "-42.5vh",
+                      transform: `translate3d(${x}px, 0, ${z}px) rotateY(${p.angle}deg)`,
+                      background: `linear-gradient(180deg, ${colorB} 0%, ${colorA} 50%, ${colorB} 100%)`,
+                      boxShadow: `0 0 80px ${colorA}, inset 0 0 40px ${colorA}`,
+                      borderLeft: `1px solid ${colorA}`,
+                      borderRight: `1px solid ${colorA}`,
+                      willChange: "transform",
+                    }}
+                  />
+                );
+              })}
+
+              {/* Plano "piso" con grilla — referencia espacial */}
+              <div
+                className="absolute top-1/2 left-1/2"
+                style={{
+                  width: "2400px",
+                  height: "2400px",
+                  marginLeft: "-1200px",
+                  marginTop: "-1200px",
+                  transform: "rotateX(90deg) translateZ(-280px)",
+                  background:
+                    "repeating-linear-gradient(0deg, transparent 0 99px, rgba(123,47,255,0.18) 99px 100px), repeating-linear-gradient(90deg, transparent 0 99px, rgba(123,47,255,0.18) 99px 100px)",
+                  maskImage:
+                    "radial-gradient(circle at 50% 50%, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 60%)",
+                  WebkitMaskImage:
+                    "radial-gradient(circle at 50% 50%, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 60%)",
+                }}
+              />
+              {/* Plano "techo" con grilla */}
+              <div
+                className="absolute top-1/2 left-1/2"
+                style={{
+                  width: "2400px",
+                  height: "2400px",
+                  marginLeft: "-1200px",
+                  marginTop: "-1200px",
+                  transform: "rotateX(-90deg) translateZ(-280px)",
+                  background:
+                    "repeating-linear-gradient(0deg, transparent 0 99px, rgba(200,0,122,0.12) 99px 100px), repeating-linear-gradient(90deg, transparent 0 99px, rgba(200,0,122,0.12) 99px 100px)",
+                  maskImage:
+                    "radial-gradient(circle at 50% 50%, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 60%)",
+                  WebkitMaskImage:
+                    "radial-gradient(circle at 50% 50%, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 60%)",
+                }}
+              />
+
               {stars3D.map((st, i) => (
                 <div
                   key={i}
@@ -856,8 +940,13 @@ const ServicesProjectsJourney = () => {
                     marginTop: `${-st.size / 2}px`,
                     borderRadius: "50%",
                     background: `rgba(237,236,232,${st.alpha})`,
-                    transform: `translate3d(${st.x}vw, ${st.y}vh, ${st.z}px)`,
-                    boxShadow: st.size > 1 ? `0 0 4px rgba(237,236,232,${st.alpha * 0.8})` : undefined,
+                    transform: `translate3d(${st.x}px, ${st.y}px, ${st.z}px)`,
+                    boxShadow:
+                      st.size > 3
+                        ? `0 0 ${st.size * 3}px rgba(237,236,232,${st.alpha})`
+                        : st.size > 2
+                        ? `0 0 6px rgba(237,236,232,${st.alpha * 0.8})`
+                        : undefined,
                   }}
                 />
               ))}
@@ -879,6 +968,32 @@ const ServicesProjectsJourney = () => {
                   "radial-gradient(ellipse 80% 40% at 50% 50%, rgba(0,0,0,1) 30%, rgba(0,0,0,0) 80%)",
               }}
             />
+
+            {/* Indicador direccional — confirma el sentido del giro */}
+            <div
+              className="absolute bottom-16 left-0 right-0 flex items-center justify-center gap-4"
+              style={{
+                opacity: Math.sin(turnT * Math.PI) * 0.7,
+                transition: "opacity 100ms linear",
+              }}
+            >
+              <span className="text-[10px] tracking-[0.5em] uppercase text-foreground/60 font-light">
+                Girando
+              </span>
+              <div className="flex gap-2">
+                {[0, 1, 2].map((n) => (
+                  <span
+                    key={n}
+                    className="text-foreground/70 text-lg"
+                    style={{
+                      opacity: 0.3 + ((Math.sin(turnT * 8 - n * 0.6) + 1) / 2) * 0.7,
+                    }}
+                  >
+                    →
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 

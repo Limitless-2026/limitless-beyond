@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import CustomCursor from "@/components/CustomCursor";
+import HamburgerMenu from "@/components/HamburgerMenu";
 import StarfieldParallax from "@/components/StarfieldParallax";
 import ServicesProjectsJourney from "@/components/ServicesProjectsJourney";
 import AboutConstellation from "@/components/AboutConstellation";
@@ -117,6 +118,7 @@ const V5 = () => {
       <StarfieldParallax visible={scrollProgress > 0.91} />
 
       <CustomCursor />
+      <HamburgerMenu />
 
       <div
         className="fixed inset-0 pointer-events-none z-[8]"
