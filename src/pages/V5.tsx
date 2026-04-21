@@ -1,8 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import CustomCursor from "@/components/CustomCursor";
-import ProjectsWarp from "@/components/ProjectsWarp";
 import StarfieldParallax from "@/components/StarfieldParallax";
-import ServicesCosmos from "@/components/ServicesCosmos";
+import ServicesProjectsJourney from "@/components/ServicesProjectsJourney";
 import AboutConstellation from "@/components/AboutConstellation";
 import CosmicFooterV2 from "@/components/CosmicFooterV2";
 
@@ -256,8 +255,7 @@ const V5 = () => {
       <div className="relative z-0 h-[420vh]" />
       <div className="relative z-0 h-[80vh] bg-black" />
 
-      <ServicesCosmos />
-      <ProjectsWarp />
+      <ServicesProjectsJourney />
 
       <div className="h-[20vh]" />
       <AboutConstellation />
