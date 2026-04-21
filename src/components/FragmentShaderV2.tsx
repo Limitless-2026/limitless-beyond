@@ -191,39 +191,38 @@ void main() {
   vec2 parallax = mouse * 0.025 * (1.0 - scroll * 0.7);
 
   // ── Mouse gravitational pull on the nebula ──
-  // El mouse curva el espacio: el gas y los UVs se desplazan hacia el cursor
   vec2 mouseWorld = mouse * 0.55;
   vec2 toMouse = st - mouseWorld;
   float dM = length(toMouse);
   vec2 mousePull = -toMouse * exp(-dM * 2.2) * 0.18 * (1.0 - scroll * 0.5);
 
-  // Zoom mucho más agresivo "hacia adentro de la estrella"
-  float zoomFactor = 1.0 - scroll * 0.96;  // 1 → 0.04 (dive profundo)
+  // ── DIVE INTO THE STAR ──
+  // zoomIn > 1 = nos acercamos. Dividir por zoomIn hace que todo crezca y nos
+  // hundamos hacia el centro (atravesamos la nebulosa, no nos alejamos de ella).
+  float zoomIn = 1.0 + scroll * 14.0;       // 1 → 15 (penetración profunda)
   vec2 center = vec2(0.0, 0.04 - scroll * 0.04) + parallax * 0.5 + mousePull * 0.4;
-  vec2 p = (st - center) / max(zoomFactor, 0.02);
+  vec2 p = (st - center) * zoomIn;
 
   float r = length(p);
 
-  vec3 cVoid     = vec3(0.004, 0.002, 0.010);
-  vec3 cDeepBlue = vec3(0.018, 0.012, 0.055);
-  vec3 cIndigo   = vec3(0.10, 0.05, 0.22);
-  vec3 cViolet   = vec3(0.50, 0.20, 0.92);
-  vec3 cMagenta  = vec3(1.0, 0.15, 0.55);
-  vec3 cWarm     = vec3(1.0, 0.65, 0.85);
-  vec3 cWhiteHot = vec3(1.0, 0.96, 1.0);
-  vec3 cAmber    = vec3(1.0, 0.78, 0.55);
+  // ── Paleta refinada Limitless: negro frío + violeta eléctrico + magenta ──
+  // Sin warm/amber/rosa pastel para evitar el look psicodélico hippie.
+  vec3 cVoid     = vec3(0.004, 0.003, 0.012);   // #08080C-ish
+  vec3 cDeepBlue = vec3(0.012, 0.010, 0.045);
+  vec3 cIndigo   = vec3(0.08, 0.04, 0.20);
+  vec3 cViolet   = vec3(0.48, 0.18, 1.00);      // #7B2FFF
+  vec3 cMagenta  = vec3(0.78, 0.00, 0.48);      // #C8007A
+  vec3 cWhiteHot = vec3(0.96, 0.94, 1.00);      // blanco hueso frío
 
-  // ── NEBULA SCENE — todo se acerca/aleja con el zoom (dive real) ──
-  // stZoom: igual que st pero zoomeado, para que el fondo también se acerque
-  vec2 stZoom = (st - center) / max(zoomFactor, 0.02);
+  // ── NEBULA SCENE ──
+  vec2 stZoom = (st - center) * zoomIn;
 
   float bgClouds = fbm(stZoom * 1.0 + mousePull * 1.5 + vec2(t * 0.004, t * 0.003));
   vec3 nebula = cVoid + cDeepBlue * bgClouds * 0.7;
-  nebula += cIndigo * (0.15 + scroll * 0.4);
-  // Las estrellas también se acercan con el dive (warp speed inward)
+  nebula += cIndigo * (0.10 + scroll * 0.3);
   nebula += warpStars(stZoom * 0.5 - parallax * 0.3, t, scroll, reveal);
 
-  float zoomNeb = 1.0 / max(zoomFactor * 0.7 + 0.3, 0.1);
+  float zoomNeb = zoomIn * 0.7 + 0.3;
   float aberr = 0.012 + scroll * 0.04;
   vec2 dir = normalize(p + 0.0001);
   vec2 pR = p - dir * aberr * 0.5;
@@ -235,21 +234,20 @@ void main() {
 
   vec3 nebOuter = mix(cIndigo, cViolet, smoothstep(0.0, 0.5, densG));
   vec3 nebMid   = mix(cViolet, cMagenta, smoothstep(0.3, 0.8, densG));
-  vec3 nebHot   = mix(cMagenta, cWarm, smoothstep(0.6, 1.0, densG));
-  float radialT = smoothstep(0.05, 0.7, r * (zoomFactor + 0.2));
+  vec3 nebHot   = mix(cMagenta, cWhiteHot, smoothstep(0.7, 1.0, densG));
+  float radialT = smoothstep(0.05, 0.7, r / max(zoomIn, 1.0) + 0.05);
   vec3 nebColor = mix(nebHot, nebMid, radialT);
   nebColor = mix(nebColor, nebOuter, smoothstep(0.4, 0.9, radialT));
 
-  vec3 nebContrib = vec3(densR, densG, densB) * 1.2;
+  vec3 nebContrib = vec3(densR, densG, densB) * 1.0;
   nebula += nebColor * nebContrib;
 
   float innerHot = pow(densG, 2.5) * exp(-r * 3.0) * reveal;
-  nebula += cWhiteHot * innerHot * 0.6;
-  nebula += cAmber * innerHot * 0.25;
+  nebula += cWhiteHot * innerHot * 0.5;
 
   float fil = ridged(p * 5.0 + warp(p * 2.0, t * 0.5));
   fil = pow(fil, 4.0) * exp(-r * 1.8) * reveal;
-  nebula += mix(cMagenta, cWarm, fil) * fil * 0.8;
+  nebula += mix(cViolet, cMagenta, fil) * fil * 0.6;
 
   float pulse = 1.0 + sin(t * 1.4) * 0.06 + sin(t * 4.1) * 0.02;
   float coreSize = pulse * (1.0 + scroll * 2.5);
@@ -266,14 +264,14 @@ void main() {
   float flare = (fH + fV * 0.85 + (fD1 + fD2) * 0.4) * reveal * (1.0 + scroll * 0.5);
 
   nebula += cWhiteHot * core * (2.5 + scroll * 4.0);
-  nebula += mix(cWarm, cWhiteHot, 0.6) * coreGlow * 1.0;
-  nebula += cMagenta * coreBloom * 0.6;
+  nebula += mix(cViolet, cWhiteHot, 0.7) * coreGlow * 0.9;
+  nebula += cMagenta * coreBloom * 0.5;
   nebula += cViolet * coreHalo * coreHalo * 0.4;
   nebula += cWhiteHot * flare * 0.7;
 
   float ringT = fract(t * 0.12);
   float ringR = ringT * 1.2;
-  float ring = exp(-pow((r - ringR) / 0.04, 2.0)) * (1.0 - ringT) * reveal * 0.5;
+  float ring = exp(-pow((r - ringR) / 0.04, 2.0)) * (1.0 - ringT) * reveal * 0.4;
   nebula += mix(cViolet, cMagenta, ringT) * ring;
 
   for (float i = 0.0; i < 2.0; i++) {
@@ -281,8 +279,8 @@ void main() {
             + vec2(t * 0.012 * (i + 1.0), t * 0.008)
             + parallax * (4.0 + i * 3.0);
     float dn = fbm(du);
-    float mote = smoothstep(0.72, 0.9, dn) * 0.35;
-    nebula += mote * mix(cViolet, cMagenta, hash21(vec2(i, 1.7))) * 0.18;
+    float mote = smoothstep(0.72, 0.9, dn) * 0.30;
+    nebula += mote * mix(cIndigo, cViolet, hash21(vec2(i, 1.7))) * 0.15;
   }
 
   float vigDist = length(st);
