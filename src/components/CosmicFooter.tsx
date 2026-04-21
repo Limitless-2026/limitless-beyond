@@ -19,22 +19,65 @@ const CosmicFooter = () => {
   const sectionRef = useRef<HTMLElement>(null);
   const progress = useScrollProgress(sectionRef);
 
-  // Layer windows
-  const eyebrowP = win(progress, 0.0, 0.25);
-  const ctaP = win(progress, 0.4, 0.65);
-  const wordmarkP = win(progress, 0.55, 0.85);
-  const metaP = win(progress, 0.75, 1.0);
+  // ─── Phase 0 — Explosion windows ────────────────────────────────────
+  const collapseP = win(progress, 0.0, 0.10);   // point contracts, ring closes in
+  const chargeP = win(progress, 0.10, 0.16);    // point pulses, glow grows
+  // White flash centered at 0.19 with width 0.04 (V2 formula)
+  const flashCenter = 0.19;
+  const flashWidth = 0.04;
+  const flashDist = Math.abs(progress - flashCenter);
+  const flashOpacity =
+    flashDist >= flashWidth ? 0 : Math.pow(1 - flashDist / flashWidth, 1.6);
+  const blastP = win(progress, 0.16, 0.22);     // shockwave + shards
+  const dustP = win(progress, 0.22, 0.30);      // stardust fades
+  // Black overlay that grows during collapse to "swallow" the starfield
+  const overlayP = win(progress, 0.0, 0.18);
 
-  // Question reveal — per word with stagger
-  const questionStart = 0.15;
-  const questionEnd = 0.45;
+  // ─── Content windows (rescaled to start after the blast) ────────────
+  const eyebrowP = win(progress, 0.25, 0.42);
+  const ctaP = win(progress, 0.55, 0.72);
+  const wordmarkP = win(progress, 0.62, 0.88);
+  const metaP = win(progress, 0.78, 1.0);
+
+  // Question reveal — per word with stagger (after the blast)
+  const questionStart = 0.30;
   const allWords = [...QUESTION_WORDS_TOP, ...QUESTION_WORDS_BOT];
-  const stagger = 0.05; // ~80ms equivalent across the window
+  const stagger = 0.04;
   const wordProgress = (idx: number) => {
     const a = questionStart + idx * stagger;
     const b = a + 0.18;
     return win(progress, a, b);
   };
+
+  // Mount flags — keep DOM light outside active windows
+  const explosionLive = progress < 0.32;
+  const dustLive = progress > 0.20 && progress < 0.34;
+
+  // ─── Derived styles for the explosion stage ─────────────────────────
+  // Collapse point: scale 1 → 0.4 as it contracts, then explodes to 0
+  const pointScale = explosionLive
+    ? blastP > 0
+      ? 0.4 + blastP * 6 // expands violently during blast
+      : 1 - collapseP * 0.6
+    : 0;
+  const pointGlow = 20 + chargeP * 180; // box-shadow blur radius
+  const pointOpacity = explosionLive
+    ? blastP < 1
+      ? 1
+      : 1 - dustP
+    : 0;
+
+  // Closing ring: width from 200vw → 0
+  const ringSize = `${(1 - collapseP) * 200}vw`;
+  const ringOpacity = collapseP > 0 && collapseP < 1 ? 0.35 : 0;
+
+  // Shockwave: 0 → 300vmax during blast
+  const shockSize = `${blastP * 300}vmax`;
+  const shockOpacity = blastP > 0 && blastP < 1 ? 1 - blastP : 0;
+
+  // Shard travel distance during blast
+  const shardDist = `${blastP * 60}vmax`;
+  const shardOpacity = blastP > 0 ? 1 - blastP : 0;
 
   // Helper: clip-path reveal style (vertical mask from bottom up)
   const revealStyle = (p: number, translatePx = 40): React.CSSProperties => ({
