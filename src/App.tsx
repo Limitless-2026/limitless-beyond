@@ -12,6 +12,7 @@ import V6 from "./pages/V6.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import Proyectos from "./pages/Proyectos.tsx";
 import ProyectosV2 from "./pages/ProyectosV2.tsx";
+import ProyectosV3 from "./pages/ProyectosV3.tsx";
 import ProyectoDetalle from "./pages/ProyectoDetalle.tsx";
 import Contacto from "./pages/Contacto.tsx";
 import SmoothScrollProvider from "./components/SmoothScrollProvider";
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/v6" element={<V6 />} />
             <Route path="/proyectos" element={<Proyectos />} />
             <Route path="/proyectos/v2" element={<ProyectosV2 />} />
+            <Route path="/proyectos/v3" element={<ProyectosV3 />} />
             <Route path="/proyectos/:slug" element={<ProyectoDetalle />} />
             <Route path="/contacto" element={<Contacto />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
