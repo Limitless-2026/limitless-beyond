@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useScrollProgress } from "@/hooks/useScrollProgress";
+import { useMouseParallax } from "@/hooks/useMouseParallax";
 
 interface Star {
-  x: number; // % within stage
-  y: number; // % within stage
+  x: number;
+  y: number;
   size: number;
-  isL: boolean; // belongs to "L" shape
+  isL: boolean;
   twinkle: number;
 }
 
-// "L" shape stars (normalized 0..1 within stage). We'll center horizontally.
-// Vertical stroke + horizontal foot.
 const L_POINTS: Array<{ x: number; y: number }> = [
   { x: 0.42, y: 0.22 },
   { x: 0.42, y: 0.36 },
@@ -20,7 +20,6 @@ const L_POINTS: Array<{ x: number; y: number }> = [
   { x: 0.68, y: 0.78 },
 ];
 
-// Filler stars — random-ish but fixed
 const FILLER: Array<{ x: number; y: number; size: number }> = [
   { x: 0.12, y: 0.18, size: 1.4 },
   { x: 0.22, y: 0.62, size: 1.0 },
@@ -32,94 +31,27 @@ const FILLER: Array<{ x: number; y: number; size: number }> = [
 ];
 
 const STARS: Star[] = [
-  ...L_POINTS.map((p, i) => ({
-    x: p.x,
-    y: p.y,
-    size: 2.2,
-    isL: true,
-    twinkle: i * 0.7,
-  })),
-  ...FILLER.map((p, i) => ({
-    x: p.x,
-    y: p.y,
-    size: p.size,
-    isL: false,
-    twinkle: i * 1.3 + 2,
-  })),
+  ...L_POINTS.map((p, i) => ({ x: p.x, y: p.y, size: 2.2, isL: true, twinkle: i * 0.7 })),
+  ...FILLER.map((p, i) => ({ x: p.x, y: p.y, size: p.size, isL: false, twinkle: i * 1.3 + 2 })),
 ];
 
-// Lines drawn between consecutive L points (6 segments)
-const L_SEGMENTS = L_POINTS.slice(0, -1).map((p, i) => ({
-  from: i,
-  to: i + 1,
-}));
+const L_SEGMENTS = L_POINTS.slice(0, -1).map((_, i) => ({ from: i, to: i + 1 }));
 
 const BLOCKS = [
   {
-    eyebrow: null,
-    words: [
-      "Somos",
-      "un",
-      "estudio",
-      "de",
-      "diseño",
-      "y",
-      "desarrollo",
-      "digital",
-      "con",
-      "base",
-      "en",
-      "Argentina",
-      "y",
-      "mirada",
-      "global.",
-    ],
+    words: ["Somos", "un", "estudio", "de", "diseño", "y", "desarrollo", "digital", "con", "base", "en", "Argentina", "y", "mirada", "global."],
     accent: [] as number[],
-    inStart: 0.20,
-    inEnd: 0.30,
-    outStart: 0.40,
-    outEnd: 0.48,
+    inStart: 0.20, inEnd: 0.30, outStart: 0.40, outEnd: 0.48,
   },
   {
-    eyebrow: null,
-    words: [
-      "No",
-      "hacemos",
-      "sólo",
-      "sitios",
-      "—",
-      "creamos",
-      "experiencias",
-      "que",
-      "transforman",
-      "marcas.",
-    ],
+    words: ["No", "hacemos", "sólo", "sitios", "—", "creamos", "experiencias", "que", "transforman", "marcas."],
     accent: [8],
-    inStart: 0.45,
-    inEnd: 0.55,
-    outStart: 0.65,
-    outEnd: 0.72,
+    inStart: 0.45, inEnd: 0.55, outStart: 0.65, outEnd: 0.72,
   },
   {
-    eyebrow: null,
-    words: [
-      "Estrategia,",
-      "craft",
-      "y",
-      "tecnología.",
-      "Para",
-      "que",
-      "cada",
-      "lanzamiento",
-      "se",
-      "sienta",
-      "inevitable.",
-    ],
+    words: ["Estrategia,", "craft", "y", "tecnología.", "Para", "que", "cada", "lanzamiento", "se", "sienta", "inevitable."],
     accent: [10],
-    inStart: 0.70,
-    inEnd: 0.80,
-    outStart: 0.90,
-    outEnd: 0.95,
+    inStart: 0.70, inEnd: 0.80, outStart: 0.90, outEnd: 0.95,
   },
 ];
 
@@ -133,41 +65,16 @@ const fade = (p: number, a: number, b: number, c: number, d: number) => {
 const AboutConstellation = () => {
   const sectionRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [progress, setProgress] = useState(0);
-  const [mouse, setMouse] = useState({ x: 0, y: 0 });
+  const progress = useScrollProgress(sectionRef);
+  const mouse = useMouseParallax();
+  const progressRef = useRef(0);
 
-  // Scroll progress within sticky stage
+  // Sync state -> ref so the RAF loop reads without re-mounting
   useEffect(() => {
-    const onScroll = () => {
-      const el = sectionRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const total = el.offsetHeight - window.innerHeight;
-      const scrolled = -rect.top;
-      const p = Math.max(0, Math.min(1, scrolled / total));
-      setProgress(p);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-    };
-  }, []);
+    progressRef.current = progress;
+  }, [progress]);
 
-  // Mouse parallax
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      const x = (e.clientX / window.innerWidth) * 2 - 1;
-      const y = (e.clientY / window.innerHeight) * 2 - 1;
-      setMouse({ x, y });
-    };
-    window.addEventListener("mousemove", onMove);
-    return () => window.removeEventListener("mousemove", onMove);
-  }, []);
-
-  // Canvas star drawing with continuous twinkle
+  // Canvas drawing — mounts once, throttled to 30fps
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -175,49 +82,74 @@ const AboutConstellation = () => {
     if (!ctx) return;
 
     let raf = 0;
-    let start = performance.now();
+    let lastDraw = 0;
+    const FRAME_MS = 1000 / 30;
+    const start = performance.now();
+    let cssW = 0;
+    let cssH = 0;
 
     const resize = () => {
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
+      cssW = rect.width;
+      cssH = rect.height;
+      canvas.width = Math.max(1, Math.floor(cssW * dpr));
+      canvas.height = Math.max(1, Math.floor(cssH * dpr));
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
     window.addEventListener("resize", resize);
 
-    const accent = "123, 47, 255"; // --color-accent rgb-ish
+    const accent = "123, 47, 255";
     const text = "237, 236, 232";
 
-    const draw = () => {
-      const t = (performance.now() - start) / 1000;
-      const rect = canvas.getBoundingClientRect();
-      const W = rect.width;
-      const H = rect.height;
+    // Pre-render glow sprites per star size (cached, no per-frame gradients)
+    const glowCache = new Map<number, HTMLCanvasElement>();
+    const getGlow = (size: number) => {
+      const key = Math.round(size * 10);
+      const cached = glowCache.get(key);
+      if (cached) return cached;
+      const r = size * 6;
+      const off = document.createElement("canvas");
+      off.width = off.height = Math.ceil(r * 2);
+      const octx = off.getContext("2d")!;
+      const g = octx.createRadialGradient(r, r, 0, r, r, r);
+      g.addColorStop(0, `rgba(${text}, 1)`);
+      g.addColorStop(0.4, `rgba(${accent}, 0.4)`);
+      g.addColorStop(1, `rgba(${accent}, 0)`);
+      octx.fillStyle = g;
+      octx.beginPath();
+      octx.arc(r, r, r, 0, Math.PI * 2);
+      octx.fill();
+      glowCache.set(key, off);
+      return off;
+    };
+
+    const draw = (now: number) => {
+      raf = requestAnimationFrame(draw);
+      if (now - lastDraw < FRAME_MS) return;
+      lastDraw = now;
+
+      const p = progressRef.current;
+      const t = (now - start) / 1000;
+      const W = cssW;
+      const H = cssH;
       ctx.clearRect(0, 0, W, H);
 
-      // Stars appear progressively (0..0.15 -> 0..1)
-      const starsAppear = Math.min(1, Math.max(0, progress / 0.15));
-      // Constellation fade-out near end
-      const constFade = progress > 0.92 ? Math.max(0, 1 - (progress - 0.92) / 0.06) : 1;
+      const starsAppear = Math.min(1, Math.max(0, p / 0.15));
+      const constFade = p > 0.92 ? Math.max(0, 1 - (p - 0.92) / 0.06) : 1;
 
-      // Draw L segments — staggered between 0.18 and 0.38
-      const segStart = 0.18;
-      const segEnd = 0.38;
-      const segP = Math.max(0, Math.min(1, (progress - segStart) / (segEnd - segStart)));
+      // L segments staggered
+      const segP = Math.max(0, Math.min(1, (p - 0.18) / (0.38 - 0.18)));
       L_SEGMENTS.forEach((seg, i) => {
-        const segLocal = Math.max(
-          0,
-          Math.min(1, (segP * L_SEGMENTS.length) - i)
-        );
+        const segLocal = Math.max(0, Math.min(1, segP * L_SEGMENTS.length - i));
         if (segLocal <= 0) return;
         const a = STARS[seg.from];
         const b = STARS[seg.to];
         const ax = a.x * W;
         const ay = a.y * H;
-        const bx = a.x * W + (b.x * W - a.x * W) * segLocal;
-        const by = a.y * H + (b.y * H - a.y * H) * segLocal;
+        const bx = ax + (b.x * W - ax) * segLocal;
+        const by = ay + (b.y * H - ay) * segLocal;
         ctx.beginPath();
         ctx.moveTo(ax, ay);
         ctx.lineTo(bx, by);
@@ -226,33 +158,27 @@ const AboutConstellation = () => {
         ctx.stroke();
       });
 
-      // Draw stars
-      STARS.forEach((s, i) => {
+      for (let i = 0; i < STARS.length; i++) {
+        const s = STARS[i];
         const cx = s.x * W;
         const cy = s.y * H;
         const tw = 0.6 + 0.4 * Math.sin(t * 1.4 + s.twinkle);
         const baseAlpha = (s.isL ? 0.9 : 0.55) * starsAppear * constFade * tw;
-        const intensify = progress > 0.7 ? 1 + (progress - 0.7) * 0.8 : 1;
+        const intensify = p > 0.7 ? 1 + (p - 0.7) * 0.8 : 1;
         const r = s.size * intensify;
 
-        // glow
-        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 6);
-        grad.addColorStop(0, `rgba(${text}, ${baseAlpha})`);
-        grad.addColorStop(0.4, `rgba(${accent}, ${baseAlpha * 0.4})`);
-        grad.addColorStop(1, `rgba(${accent}, 0)`);
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r * 6, 0, Math.PI * 2);
-        ctx.fill();
+        const sprite = getGlow(r);
+        const sw = sprite.width;
+        ctx.globalAlpha = baseAlpha;
+        ctx.drawImage(sprite, cx - sw / 2, cy - sw / 2);
 
-        // core
-        ctx.fillStyle = `rgba(${text}, ${baseAlpha})`;
+        ctx.globalAlpha = baseAlpha;
+        ctx.fillStyle = `rgb(${text})`;
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
         ctx.fill();
-      });
-
-      raf = requestAnimationFrame(draw);
+      }
+      ctx.globalAlpha = 1;
     };
     raf = requestAnimationFrame(draw);
 
@@ -260,7 +186,7 @@ const AboutConstellation = () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
     };
-  }, [progress]);
+  }, []);
 
   const closingOpacity = fade(progress, 0.93, 0.97, 1.1, 1.2);
 
@@ -270,8 +196,10 @@ const AboutConstellation = () => {
       className="relative w-full"
       style={{ height: "280vh" }}
     >
-      <div className="sticky top-0 h-screen w-full overflow-hidden">
-        {/* Eyebrow */}
+      <div
+        className="sticky top-0 h-screen w-full overflow-hidden"
+        style={{ contain: "layout paint", transform: "translateZ(0)" }}
+      >
         <div
           className="absolute top-10 left-1/2 -translate-x-1/2 z-20 pointer-events-none"
           style={{
@@ -284,7 +212,6 @@ const AboutConstellation = () => {
           </span>
         </div>
 
-        {/* Canvas constellation with mouse parallax */}
         <div
           className="absolute inset-0"
           style={{
@@ -295,22 +222,12 @@ const AboutConstellation = () => {
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
         </div>
 
-        {/* Manifesto blocks */}
         <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none px-6">
           <div className="relative w-full max-w-4xl text-center">
             {BLOCKS.map((block, bi) => {
-              const blockOpacity = fade(
-                progress,
-                block.inStart,
-                block.inEnd,
-                block.outStart,
-                block.outEnd
-              );
+              const blockOpacity = fade(progress, block.inStart, block.inEnd, block.outStart, block.outEnd);
               if (blockOpacity <= 0) return null;
-              const wordReveal = Math.max(
-                0,
-                Math.min(1, (progress - block.inStart) / (block.inEnd - block.inStart))
-              );
+              const wordReveal = Math.max(0, Math.min(1, (progress - block.inStart) / (block.inEnd - block.inStart)));
               return (
                 <h2
                   key={bi}
@@ -318,10 +235,7 @@ const AboutConstellation = () => {
                   style={{ opacity: blockOpacity, fontWeight: 300 }}
                 >
                   {block.words.map((w, wi) => {
-                    const wordP = Math.max(
-                      0,
-                      Math.min(1, wordReveal * block.words.length - wi)
-                    );
+                    const wordP = Math.max(0, Math.min(1, wordReveal * block.words.length - wi));
                     const isAccent = block.accent.includes(wi);
                     return (
                       <span
@@ -347,7 +261,6 @@ const AboutConstellation = () => {
               );
             })}
 
-            {/* Closing micro-copy */}
             {closingOpacity > 0 && (
               <div
                 className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex flex-col items-center"
@@ -358,11 +271,7 @@ const AboutConstellation = () => {
                 </p>
                 <span
                   className="block mt-6 h-px"
-                  style={{
-                    width: "60px",
-                    background: "hsl(var(--impact, 322 100% 39%))",
-                    backgroundColor: "#C8007A",
-                  }}
+                  style={{ width: "60px", backgroundColor: "#C8007A" }}
                 />
               </div>
             )}
