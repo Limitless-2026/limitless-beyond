@@ -3,6 +3,7 @@ import CustomCursor from "@/components/CustomCursor";
 import HamburgerMenu from "@/components/HamburgerMenu";
 import StarfieldParallax from "@/components/StarfieldParallax";
 import ServicesPlanetsInteractive from "@/components/ServicesPlanetsInteractive";
+import ProjectsHomePreview from "@/components/ProjectsHomePreview";
 import AboutConstellation from "@/components/AboutConstellation";
 import CosmicFooterV2 from "@/components/CosmicFooterV2";
 import Preloader from "@/components/Preloader";
@@ -270,6 +271,8 @@ const V6 = () => {
       <div className="relative z-0 h-[80vh] bg-black" />
 
       <ServicesPlanetsInteractive />
+
+      <ProjectsHomePreview />
 
       <div className="h-[20vh]" />
       <AboutConstellation />
