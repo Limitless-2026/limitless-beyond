@@ -273,16 +273,15 @@ function RouteLine({ progress }: { progress: number }) {
     for (const s of SERVICES) ctrl.push(new THREE.Vector3(...s.position));
     // Pivote
     ctrl.push(new THREE.Vector3(...PIVOT.position));
-    // Vuelta: proyectos en orden (z creciente)
-    for (const p of PROJECTS) ctrl.push(new THREE.Vector3(...p.position));
-    ctrl.push(new THREE.Vector3(0, 0, 0));
     const curve = new THREE.CatmullRomCurve3(ctrl, false, "catmullrom", 0.4);
     const pts = curve.getPoints(300);
     return { points: pts, total: pts.length };
   }, []);
 
   const visiblePoints = useMemo(() => {
-    const count = Math.max(2, Math.floor(total * Math.min(1, progress * 1.02 + 0.03)));
+    // La línea se completa al llegar al pivote (INFLEXION_END).
+    const lineProgress = Math.min(1, progress / INFLEXION_END);
+    const count = Math.max(2, Math.floor(total * Math.min(1, lineProgress * 1.02 + 0.03)));
     return points.slice(0, count);
   }, [progress, points, total]);
 
