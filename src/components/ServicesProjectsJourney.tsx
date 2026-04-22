@@ -556,7 +556,8 @@ function Scene({
   const lastActiveIdRef = useRef<string>("");
   const cameraPosVec = useRef(new THREE.Vector3());
   const cameraYawRef = useRef(0);
-  const [, force] = useState(0);
+  const lite = useMemo(() => isLowTier(), []);
+  const swayMul = lite ? 0.4 : 1;
 
   useFrame(() => {
     const p = progress;
@@ -572,8 +573,8 @@ function Scene({
       // ---- ACT I — avanzar con serpenteo ----
       act = "I";
       const pl = p / ACT_I_END; // 0..1
-      targetX = Math.sin(pl * Math.PI * 3) * 1.5;
-      targetY = Math.cos(pl * Math.PI * 2) * 0.8;
+      targetX = Math.sin(pl * Math.PI * 3) * 1.5 * swayMul;
+      targetY = Math.cos(pl * Math.PI * 2) * 0.8 * swayMul;
       targetZ = -pl * 55;
       targetYaw = 0;
     } else if (p < INFLEXION_END) {
@@ -586,8 +587,8 @@ function Scene({
       const zCurve = -55 + Math.sin(pl * Math.PI) * -3; // -55 → -58 → -55
       targetZ = zCurve;
       // X/Y: frena el serpenteo
-      targetX = Math.sin(Math.PI * 3) * 1.5 * (1 - eased);
-      targetY = Math.cos(Math.PI * 2) * 0.8 * (1 - eased);
+      targetX = Math.sin(Math.PI * 3) * 1.5 * swayMul * (1 - eased);
+      targetY = Math.cos(Math.PI * 2) * 0.8 * swayMul * (1 - eased);
       // Yaw: 0 → π
       targetYaw = eased * Math.PI;
       // Flash en el pico
@@ -597,8 +598,8 @@ function Scene({
       // ---- ACT II — volver mirando atrás ----
       act = "II";
       const pl = (p - INFLEXION_END) / (1 - INFLEXION_END); // 0..1
-      targetX = Math.sin(pl * Math.PI * 2.5 + Math.PI) * 1.5;
-      targetY = Math.cos(pl * Math.PI * 2 + Math.PI) * 0.8;
+      targetX = Math.sin(pl * Math.PI * 2.5 + Math.PI) * 1.5 * swayMul;
+      targetY = Math.cos(pl * Math.PI * 2 + Math.PI) * 0.8 * swayMul;
       // Z: -55 → -3
       targetZ = -55 + pl * 52;
       targetYaw = Math.PI;
@@ -647,9 +648,6 @@ function Scene({
       // Only flash changes frequently
       onStateChange({ act, activeBody: bestBody, flash });
     }
-
-    // Force re-render of labels with new cameraPos (labels read from props)
-    force((n) => (n + 1) % 1000000);
   });
 
   return (
@@ -666,8 +664,8 @@ function Scene({
         <BodyLabel
           key={`l-${b.id}`}
           body={b}
-          cameraPos={cameraPosVec.current}
-          cameraYaw={cameraYawRef.current}
+          cameraPosRef={cameraPosVec}
+          cameraYawRef={cameraYawRef}
         />
       ))}
     </>
@@ -754,11 +752,22 @@ const ServicesProjectsJourney = () => {
   const pivotScale = pivotVisible ? Math.pow(1 - pivotD, 0.6) : 0;
   const pivotOpacity = pivotVisible ? Math.pow(1 - pivotD, 1.2) : 0;
 
+  const lite = isLowTier();
+  const fov =
+    typeof window !== "undefined"
+      ? window.innerWidth < 480
+        ? 75
+        : window.innerWidth < 768
+        ? 65
+        : 55
+      : 55;
+  const sectionHeight = lite ? "600vh" : "900vh";
+
   return (
     <section
       ref={sectionRef}
       className="relative"
-      style={{ height: "900vh", contain: "layout paint" }}
+      style={{ height: sectionHeight, contain: "layout paint" }}
     >
       <div
         className="sticky top-0 w-full h-screen overflow-hidden"
@@ -773,9 +782,9 @@ const ServicesProjectsJourney = () => {
           }}
         >
           <Canvas
-            dpr={[1, 1.5]}
+            dpr={lite ? [1, 1] : [1, 1.5]}
             gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
-            camera={{ fov: 55, near: 0.1, far: 200, position: [0, 0, 0] }}
+            camera={{ fov, near: 0.1, far: 200, position: [0, 0, 0] }}
             style={{ background: "transparent" }}
           >
             <Scene progress={progress} onStateChange={setState} />
