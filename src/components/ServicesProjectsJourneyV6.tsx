@@ -443,35 +443,40 @@ function RouteLine({ progress }: { progress: number }) {
 
 function BodyLabel({
   body,
-  cameraPos,
-  cameraYaw,
+  cameraPosRef,
+  cameraYawRef,
 }: {
   body: Body;
-  cameraPos: THREE.Vector3;
-  cameraYaw: number;
+  cameraPosRef: React.MutableRefObject<THREE.Vector3>;
+  cameraYawRef: React.MutableRefObject<number>;
 }) {
   // Pivote sin texto: no se renderiza label alguno.
   if (!body.title) return null;
 
   const lite = isLowTier();
+  const htmlRef = useRef<HTMLDivElement>(null);
 
-  // Direction from camera to body
-  const dx = body.position[0] - cameraPos.x;
-  const dz = body.position[2] - cameraPos.z;
-  // Facing vector of camera (yaw 0 = -Z, yaw π = +Z)
-  const fx = -Math.sin(cameraYaw);
-  const fz = -Math.cos(cameraYaw);
-  // Depth along camera facing direction
-  const depthInFront = dx * fx + dz * fz;
-
-  let opacity = 0;
-  if (depthInFront > -2 && depthInFront < 18) {
-    if (depthInFront < 4) {
-      opacity = Math.max(0, (depthInFront + 2) / 6);
-    } else {
-      opacity = Math.max(0, 1 - (depthInFront - 4) / 14);
+  // Mutamos opacidad directo desde useFrame (sin re-render React)
+  useFrame(() => {
+    const el = htmlRef.current;
+    if (!el) return;
+    const cp = cameraPosRef.current;
+    const yaw = cameraYawRef.current;
+    const dx = body.position[0] - cp.x;
+    const dz = body.position[2] - cp.z;
+    const fx = -Math.sin(yaw);
+    const fz = -Math.cos(yaw);
+    const depthInFront = dx * fx + dz * fz;
+    let opacity = 0;
+    if (depthInFront > -2 && depthInFront < 18) {
+      if (depthInFront < 4) {
+        opacity = Math.max(0, (depthInFront + 2) / 6);
+      } else {
+        opacity = Math.max(0, 1 - (depthInFront - 4) / 14);
+      }
     }
-  }
+    el.style.opacity = String(opacity);
+  });
 
   return (
     <Html
@@ -480,11 +485,12 @@ function BodyLabel({
       distanceFactor={lite ? 11 : 8}
       style={{
         pointerEvents: "none",
-        opacity,
+        opacity: 0,
         transition: "opacity 300ms linear",
       }}
     >
       <div
+        ref={htmlRef}
         style={{
           width: lite ? "200px" : "260px",
           textAlign: "center",
