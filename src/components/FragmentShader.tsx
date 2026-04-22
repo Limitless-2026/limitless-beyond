@@ -352,6 +352,11 @@ const FragmentShaderMesh = () => {
   const startTime = useRef(Date.now());
   const smoothMouse = useRef(new THREE.Vector2(0.5, 0.5));
   const smoothScroll = useRef(0);
+  const lite = useMemo(() => isLowTier(), []);
+  const fragSrc = useMemo(
+    () => (lite ? "#define LITE\n" : "") + fragmentShader,
+    [lite],
+  );
 
   const uniforms = useMemo(
     () => ({
@@ -367,6 +372,13 @@ const FragmentShaderMesh = () => {
   );
 
   useFrame(() => {
+    // Pausar el shader cuando el hero ya no es visible (sigue fixed pero
+    // tapado por las secciones siguientes). Ahorra GPU en mobile.
+    if (typeof window !== "undefined") {
+      const sy = window.scrollY;
+      if (sy > window.innerHeight * 1.6) return;
+    }
+
     const elapsed = (Date.now() - startTime.current) / 1000;
     uniforms.uTime.value = elapsed;
     uniforms.uResolution.value.set(size.width, size.height);
@@ -401,7 +413,7 @@ const FragmentShaderMesh = () => {
       <planeGeometry args={[2, 2]} />
       <shaderMaterial
         vertexShader={vertexShader}
-        fragmentShader={fragmentShader}
+        fragmentShader={fragSrc}
         uniforms={uniforms}
         depthWrite={false}
         depthTest={false}
