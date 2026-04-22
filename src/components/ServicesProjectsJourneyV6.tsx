@@ -450,9 +450,6 @@ function BodyLabel({
   cameraPosRef: React.MutableRefObject<THREE.Vector3>;
   cameraYawRef: React.MutableRefObject<number>;
 }) {
-  // Pivote sin texto: no se renderiza label alguno.
-  if (!body.title) return null;
-
   const lite = isLowTier();
   const htmlRef = useRef<HTMLDivElement>(null);
 
@@ -477,6 +474,9 @@ function BodyLabel({
     }
     el.style.opacity = String(opacity);
   });
+
+  // Pivote sin texto: no se renderiza label alguno.
+  if (!body.title) return null;
 
   return (
     <Html
@@ -818,8 +818,8 @@ function Scene({
         <BodyLabel
           key={`l-${b.id}`}
           body={b}
-          cameraPos={cameraPosVec.current}
-          cameraYaw={cameraYawRef.current}
+          cameraPosRef={cameraPosVec}
+          cameraYawRef={cameraYawRef}
         />
       ))}
     </>
