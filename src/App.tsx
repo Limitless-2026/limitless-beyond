@@ -9,6 +9,7 @@ import V3 from "./pages/V3.tsx";
 import V4 from "./pages/V4.tsx";
 import V5 from "./pages/V5.tsx";
 import V6 from "./pages/V6.tsx";
+import V7 from "./pages/V7.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import Proyectos from "./pages/Proyectos.tsx";
 import ProyectosV2 from "./pages/ProyectosV2.tsx";
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/v4" element={<V4 />} />
             <Route path="/v5" element={<V5 />} />
             <Route path="/v6" element={<V6 />} />
+            <Route path="/v7" element={<V7 />} />
             <Route path="/proyectos" element={<Proyectos />} />
             <Route path="/proyectos/v2" element={<ProyectosV2 />} />
             <Route path="/proyectos/v3" element={<ProyectosV3 />} />
