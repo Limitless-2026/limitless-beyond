@@ -4,6 +4,7 @@ import { Html, Line, Points, PointMaterial } from "@react-three/drei";
 import * as THREE from "three";
 import { useScrollProgress } from "@/hooks/useScrollProgress";
 import { useMouseParallaxRef } from "@/hooks/useMouseParallax";
+import { isLowTier } from "@/hooks/useDeviceTier";
 import { SERVICES as SERVICE_DATA, type Service as ServiceMeta } from "@/data/services";
 import ServiceModal from "@/components/ServiceModal";
 
