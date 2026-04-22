@@ -1,6 +1,7 @@
 import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+import { isLowTier } from "@/hooks/useDeviceTier";
 
 const vertexShader = /* glsl */ `
 varying vec2 vUv;
