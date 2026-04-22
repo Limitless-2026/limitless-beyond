@@ -306,48 +306,54 @@ function RouteLine({ progress }: { progress: number }) {
 
 function BodyLabel({
   body,
-  cameraPos,
-  cameraYaw,
+  cameraPosRef,
+  cameraYawRef,
 }: {
   body: Body;
-  cameraPos: THREE.Vector3;
-  cameraYaw: number;
+  cameraPosRef: React.MutableRefObject<THREE.Vector3>;
+  cameraYawRef: React.MutableRefObject<number>;
 }) {
-  // Pivote sin texto: no se renderiza label alguno.
-  if (!body.title) return null;
+  const lite = isLowTier();
+  const htmlRef = useRef<HTMLDivElement>(null);
 
-  // Direction from camera to body
-  const dx = body.position[0] - cameraPos.x;
-  const dz = body.position[2] - cameraPos.z;
-  // Facing vector of camera (yaw 0 = -Z, yaw π = +Z)
-  const fx = -Math.sin(cameraYaw);
-  const fz = -Math.cos(cameraYaw);
-  // Depth along camera facing direction
-  const depthInFront = dx * fx + dz * fz;
-
-  let opacity = 0;
-  if (depthInFront > -2 && depthInFront < 18) {
-    if (depthInFront < 4) {
-      opacity = Math.max(0, (depthInFront + 2) / 6);
-    } else {
-      opacity = Math.max(0, 1 - (depthInFront - 4) / 14);
+  useFrame(() => {
+    const el = htmlRef.current;
+    if (!el) return;
+    const cp = cameraPosRef.current;
+    const yaw = cameraYawRef.current;
+    const dx = body.position[0] - cp.x;
+    const dz = body.position[2] - cp.z;
+    const fx = -Math.sin(yaw);
+    const fz = -Math.cos(yaw);
+    const depthInFront = dx * fx + dz * fz;
+    let opacity = 0;
+    if (depthInFront > -2 && depthInFront < 18) {
+      if (depthInFront < 4) {
+        opacity = Math.max(0, (depthInFront + 2) / 6);
+      } else {
+        opacity = Math.max(0, 1 - (depthInFront - 4) / 14);
+      }
     }
-  }
+    el.style.opacity = String(opacity);
+  });
+
+  if (!body.title) return null;
 
   return (
     <Html
       position={body.position}
       center
-      distanceFactor={8}
+      distanceFactor={lite ? 11 : 8}
       style={{
         pointerEvents: "none",
-        opacity,
+        opacity: 0,
         transition: "opacity 300ms linear",
       }}
     >
       <div
+        ref={htmlRef}
         style={{
-          width: "260px",
+          width: lite ? "200px" : "260px",
           textAlign: "center",
           color: "#EDECE8",
           transform: `translateY(${body.position[1] > 0 ? "100px" : "-140px"})`,
@@ -368,7 +374,7 @@ function BodyLabel({
         <div
           style={{
             fontFamily: "'Arkitech', 'Inter', sans-serif",
-            fontSize: body.impact ? "40px" : "32px",
+            fontSize: body.impact ? (lite ? "28px" : "40px") : (lite ? "22px" : "32px"),
             letterSpacing: "0.12em",
             fontWeight: 300,
             lineHeight: 1,
@@ -386,9 +392,9 @@ function BodyLabel({
           style={{
             fontFamily: "'DM Sans', sans-serif",
             fontWeight: 300,
-            fontSize: "13px",
+            fontSize: lite ? "12px" : "13px",
             opacity: 0.75,
-            maxWidth: "240px",
+            maxWidth: lite ? "180px" : "240px",
             margin: "0 auto",
             lineHeight: 1.5,
           }}
@@ -459,8 +465,9 @@ function ProjectsOverlay({ progress }: { progress: number }) {
               : Math.max(0, 1 - (l - 0.55) * 3.5);
           const opacity = l > 0.9 ? 0 : rawOpacity;
 
-          const xOffset = i % 2 === 0 ? -120 : 120;
-          const yOffset = i % 3 === 0 ? -80 : i % 3 === 1 ? 60 : -30;
+          const lite = isLowTier();
+          const xOffset = (i % 2 === 0 ? -1 : 1) * (lite ? 60 : 120);
+          const yOffset = i % 3 === 0 ? (lite ? -50 : -80) : i % 3 === 1 ? (lite ? 40 : 60) : (lite ? -20 : -30);
           const visible = opacity > 0.01 && l <= 0.9;
 
           return (
@@ -468,10 +475,10 @@ function ProjectsOverlay({ progress }: { progress: number }) {
               key={project.id}
               className="absolute top-1/2 left-1/2"
               style={{
-                width: "min(560px, 70vw)",
-                height: "min(360px, 45vh)",
-                marginLeft: "calc(min(560px, 70vw) / -2)",
-                marginTop: "calc(min(360px, 45vh) / -2)",
+                width: lite ? "min(420px, 88vw)" : "min(560px, 70vw)",
+                height: lite ? "min(280px, 50vh)" : "min(360px, 45vh)",
+                marginLeft: lite ? "calc(min(420px, 88vw) / -2)" : "calc(min(560px, 70vw) / -2)",
+                marginTop: lite ? "calc(min(280px, 50vh) / -2)" : "calc(min(360px, 45vh) / -2)",
                 transform: `translate3d(${xOffset}px, ${yOffset}px, ${z}px)`,
                 opacity,
                 visibility: visible ? "visible" : "hidden",
