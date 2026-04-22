@@ -4,6 +4,7 @@ import { Html, Line, Points, PointMaterial } from "@react-three/drei";
 import * as THREE from "three";
 import { useScrollProgress } from "@/hooks/useScrollProgress";
 import { useMouseParallaxRef } from "@/hooks/useMouseParallax";
+import { isLowTier } from "@/hooks/useDeviceTier";
 
 const ServicesNebula = lazy(() => import("@/components/ServicesNebula"));
 
@@ -205,7 +206,7 @@ function Planet({
   return (
     <group position={body.position}>
       <mesh ref={glowRef}>
-        <sphereGeometry args={[1, 32, 32]} />
+        <sphereGeometry args={[1, 16, 16]} />
         <meshBasicMaterial
           color={body.color}
           transparent
@@ -215,7 +216,7 @@ function Planet({
         />
       </mesh>
       <mesh ref={meshRef}>
-        <sphereGeometry args={[1, 64, 64]} />
+        <sphereGeometry args={[1, isLowTier() ? 32 : 64, isLowTier() ? 32 : 64]} />
         <shaderMaterial
           ref={matRef}
           vertexShader={planetVertexShader}
@@ -233,8 +234,9 @@ function Planet({
 
 function AmbientDust() {
   const positions = useMemo(() => {
-    const arr = new Float32Array(1200 * 3);
-    for (let i = 0; i < 1200; i++) {
+    const count = isLowTier() ? 400 : 1200;
+    const arr = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
       arr[i * 3 + 0] = (Math.random() - 0.5) * 40;
       arr[i * 3 + 1] = (Math.random() - 0.5) * 25;
       arr[i * 3 + 2] = -Math.random() * 75 + 5;
@@ -276,7 +278,7 @@ function RouteLine({ progress }: { progress: number }) {
     // Pivote
     ctrl.push(new THREE.Vector3(...PIVOT.position));
     const curve = new THREE.CatmullRomCurve3(ctrl, false, "catmullrom", 0.4);
-    const pts = curve.getPoints(300);
+    const pts = curve.getPoints(isLowTier() ? 120 : 300);
     return { points: pts, total: pts.length };
   }, []);
 
