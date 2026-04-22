@@ -939,11 +939,25 @@ const ServicesProjectsJourneyV6 = () => {
   const pivotScale = pivotVisible ? Math.pow(1 - pivotD, 0.6) : 0;
   const pivotOpacity = pivotVisible ? Math.pow(1 - pivotD, 1.2) : 0;
 
+  // Tier-aware: FOV más amplio en mobile/tablet para que los planetas no
+  // se corten contra los bordes; DPR cap más bajo para perf; sección más
+  // corta para que el viaje no sea eterno.
+  const lite = isLowTier();
+  const fov =
+    typeof window !== "undefined"
+      ? window.innerWidth < 480
+        ? 75
+        : window.innerWidth < 768
+        ? 65
+        : 55
+      : 55;
+  const sectionHeight = lite ? "600vh" : "900vh";
+
   return (
     <section
       ref={sectionRef}
       className="relative"
-      style={{ height: "900vh", contain: "layout paint" }}
+      style={{ height: sectionHeight, contain: "layout paint" }}
     >
       <div
         className="sticky top-0 w-full h-screen overflow-hidden"
@@ -958,9 +972,9 @@ const ServicesProjectsJourneyV6 = () => {
           }}
         >
           <Canvas
-            dpr={[1, 1.5]}
+            dpr={lite ? [1, 1] : [1, 1.5]}
             gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
-            camera={{ fov: 55, near: 0.1, far: 200, position: [0, 0, 0] }}
+            camera={{ fov, near: 0.1, far: 200, position: [0, 0, 0] }}
             style={{ background: "transparent" }}
           >
             <Scene
