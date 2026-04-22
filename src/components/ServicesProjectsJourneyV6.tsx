@@ -598,8 +598,9 @@ function ProjectsOverlay({ progress }: { progress: number }) {
               : Math.max(0, 1 - (l - 0.55) * 3.5);
           const opacity = l > 0.9 ? 0 : rawOpacity;
 
-          const xOffset = i % 2 === 0 ? -120 : 120;
-          const yOffset = i % 3 === 0 ? -80 : i % 3 === 1 ? 60 : -30;
+          const lite = isLowTier();
+          const xOffset = (i % 2 === 0 ? -1 : 1) * (lite ? 60 : 120);
+          const yOffset = i % 3 === 0 ? (lite ? -50 : -80) : i % 3 === 1 ? (lite ? 40 : 60) : (lite ? -20 : -30);
           const visible = opacity > 0.01 && l <= 0.9;
 
           return (
@@ -607,10 +608,10 @@ function ProjectsOverlay({ progress }: { progress: number }) {
               key={project.id}
               className="absolute top-1/2 left-1/2"
               style={{
-                width: "min(560px, 70vw)",
-                height: "min(360px, 45vh)",
-                marginLeft: "calc(min(560px, 70vw) / -2)",
-                marginTop: "calc(min(360px, 45vh) / -2)",
+                width: lite ? "min(420px, 88vw)" : "min(560px, 70vw)",
+                height: lite ? "min(280px, 50vh)" : "min(360px, 45vh)",
+                marginLeft: lite ? "calc(min(420px, 88vw) / -2)" : "calc(min(560px, 70vw) / -2)",
+                marginTop: lite ? "calc(min(280px, 50vh) / -2)" : "calc(min(360px, 45vh) / -2)",
                 transform: `translate3d(${xOffset}px, ${yOffset}px, ${z}px)`,
                 opacity,
                 visibility: visible ? "visible" : "hidden",
@@ -692,7 +693,8 @@ function Scene({
   const lastActiveIdRef = useRef<string>("");
   const cameraPosVec = useRef(new THREE.Vector3());
   const cameraYawRef = useRef(0);
-  const [, force] = useState(0);
+  const lite = useMemo(() => isLowTier(), []);
+  const swayMul = lite ? 0.4 : 1;
 
   useFrame(() => {
     const p = progress;
@@ -708,8 +710,8 @@ function Scene({
       // ---- ACT I — avanzar con serpenteo ----
       act = "I";
       const pl = p / ACT_I_END; // 0..1
-      targetX = Math.sin(pl * Math.PI * 3) * 1.5;
-      targetY = Math.cos(pl * Math.PI * 2) * 0.8;
+      targetX = Math.sin(pl * Math.PI * 3) * 1.5 * swayMul;
+      targetY = Math.cos(pl * Math.PI * 2) * 0.8 * swayMul;
       targetZ = -pl * 55;
       targetYaw = 0;
     } else if (p < INFLEXION_END) {
@@ -722,8 +724,8 @@ function Scene({
       const zCurve = -55 + Math.sin(pl * Math.PI) * -3; // -55 → -58 → -55
       targetZ = zCurve;
       // X/Y: frena el serpenteo
-      targetX = Math.sin(Math.PI * 3) * 1.5 * (1 - eased);
-      targetY = Math.cos(Math.PI * 2) * 0.8 * (1 - eased);
+      targetX = Math.sin(Math.PI * 3) * 1.5 * swayMul * (1 - eased);
+      targetY = Math.cos(Math.PI * 2) * 0.8 * swayMul * (1 - eased);
       // Yaw: 0 → π
       targetYaw = eased * Math.PI;
       // Flash en el pico
@@ -733,8 +735,8 @@ function Scene({
       // ---- ACT II — volver mirando atrás ----
       act = "II";
       const pl = (p - INFLEXION_END) / (1 - INFLEXION_END); // 0..1
-      targetX = Math.sin(pl * Math.PI * 2.5 + Math.PI) * 1.5;
-      targetY = Math.cos(pl * Math.PI * 2 + Math.PI) * 0.8;
+      targetX = Math.sin(pl * Math.PI * 2.5 + Math.PI) * 1.5 * swayMul;
+      targetY = Math.cos(pl * Math.PI * 2 + Math.PI) * 0.8 * swayMul;
       // Z: -55 → -3
       targetZ = -55 + pl * 52;
       targetYaw = Math.PI;
@@ -783,9 +785,6 @@ function Scene({
       // Only flash changes frequently
       onStateChange({ act, activeBody: bestBody, flash });
     }
-
-    // Force re-render of labels with new cameraPos (labels read from props)
-    force((n) => (n + 1) % 1000000);
   });
 
   return (
