@@ -65,12 +65,20 @@ const mat2 ROT = mat2(0.8, 0.6, -0.6, 0.8);
 
 float fbm(vec2 p) {
   float v = 0.0, a = 0.5;
+  #ifdef LITE
+  for (int i = 0; i < 3; i++) { v += a * vnoise(p); p = ROT * p * 2.0; a *= 0.5; }
+  #else
   for (int i = 0; i < 6; i++) { v += a * vnoise(p); p = ROT * p * 2.0; a *= 0.5; }
+  #endif
   return v;
 }
 float fbm3(vec3 p) {
   float v = 0.0, a = 0.5;
+  #ifdef LITE
+  for (int i = 0; i < 3; i++) { v += a * vnoise3(p); p *= 2.03; a *= 0.5; }
+  #else
   for (int i = 0; i < 5; i++) { v += a * vnoise3(p); p *= 2.03; a *= 0.5; }
+  #endif
   return v;
 }
 
@@ -132,7 +140,12 @@ vec3 warpStars(vec2 p, float t, float scroll, float reveal) {
   vec3 cWarm  = vec3(1.0, 0.7, 0.85);
   vec3 cCool  = vec3(0.7, 0.8, 1.0);
   
-  for (float i = 0.0; i < 5.0; i++) {
+  #ifdef LITE
+  const float STAR_LAYERS = 3.0;
+  #else
+  const float STAR_LAYERS = 5.0;
+  #endif
+  for (float i = 0.0; i < STAR_LAYERS; i++) {
     float depth = 0.6 + i * 0.6;
     // As we scroll, we move "into" the field — translate inversely with depth
     float zoomIn = 1.0 - scroll * 0.65 / depth;
@@ -285,7 +298,12 @@ void main() {
   color += mix(cViolet, cMagenta, ringT) * ring;
   
   // ── Foreground dust motes (parallax) ──
-  for (float i = 0.0; i < 2.0; i++) {
+  #ifdef LITE
+  const float DUST_LAYERS = 1.0;
+  #else
+  const float DUST_LAYERS = 2.0;
+  #endif
+  for (float i = 0.0; i < DUST_LAYERS; i++) {
     vec2 du = st * (10.0 + i * 7.0)
             + vec2(t * 0.012 * (i + 1.0), t * 0.008)
             + parallax * (4.0 + i * 3.0);
