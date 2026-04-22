@@ -453,6 +453,8 @@ function BodyLabel({
   // Pivote sin texto: no se renderiza label alguno.
   if (!body.title) return null;
 
+  const lite = isLowTier();
+
   // Direction from camera to body
   const dx = body.position[0] - cameraPos.x;
   const dz = body.position[2] - cameraPos.z;
@@ -475,7 +477,7 @@ function BodyLabel({
     <Html
       position={body.position}
       center
-      distanceFactor={8}
+      distanceFactor={lite ? 11 : 8}
       style={{
         pointerEvents: "none",
         opacity,
@@ -484,7 +486,7 @@ function BodyLabel({
     >
       <div
         style={{
-          width: "260px",
+          width: lite ? "200px" : "260px",
           textAlign: "center",
           color: "#EDECE8",
           transform: `translateY(${body.position[1] > 0 ? "100px" : "-140px"})`,
@@ -505,7 +507,7 @@ function BodyLabel({
         <div
           style={{
             fontFamily: "'Arkitech', 'Inter', sans-serif",
-            fontSize: body.impact ? "40px" : "32px",
+            fontSize: body.impact ? (lite ? "28px" : "40px") : (lite ? "22px" : "32px"),
             letterSpacing: "0.12em",
             fontWeight: 300,
             lineHeight: 1,
@@ -523,9 +525,9 @@ function BodyLabel({
           style={{
             fontFamily: "'DM Sans', sans-serif",
             fontWeight: 300,
-            fontSize: "13px",
+            fontSize: lite ? "12px" : "13px",
             opacity: 0.75,
-            maxWidth: "240px",
+            maxWidth: lite ? "180px" : "240px",
             margin: "0 auto",
             lineHeight: 1.5,
           }}
