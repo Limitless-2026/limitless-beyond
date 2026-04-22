@@ -310,7 +310,7 @@ function Planet({
   return (
     <group ref={groupRef} position={body.position}>
       <mesh ref={glowRef}>
-        <sphereGeometry args={[1, 32, 32]} />
+        <sphereGeometry args={[1, 16, 16]} />
         <meshBasicMaterial
           color={body.color}
           transparent
@@ -339,7 +339,7 @@ function Planet({
         onPointerOver={handleEnter}
         onPointerOut={handleLeave}
       >
-        <sphereGeometry args={[1, 64, 64]} />
+        <sphereGeometry args={[1, isLowTier() ? 32 : 64, isLowTier() ? 32 : 64]} />
         <shaderMaterial
           ref={matRef}
           vertexShader={planetVertexShader}
@@ -349,7 +349,7 @@ function Planet({
       </mesh>
       {/* Atmosphere — fresnel halo */}
       <mesh scale={1.18}>
-        <sphereGeometry args={[1, 48, 48]} />
+        <sphereGeometry args={[1, isLowTier() ? 24 : 48, isLowTier() ? 24 : 48]} />
         <shaderMaterial
           ref={atmoMatRef}
           vertexShader={planetVertexShader}
@@ -371,8 +371,9 @@ function Planet({
 
 function AmbientDust() {
   const positions = useMemo(() => {
-    const arr = new Float32Array(1200 * 3);
-    for (let i = 0; i < 1200; i++) {
+    const count = isLowTier() ? 400 : 1200;
+    const arr = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
       arr[i * 3 + 0] = (Math.random() - 0.5) * 40;
       arr[i * 3 + 1] = (Math.random() - 0.5) * 25;
       arr[i * 3 + 2] = -Math.random() * 75 + 5;
@@ -414,7 +415,7 @@ function RouteLine({ progress }: { progress: number }) {
     // Pivote
     ctrl.push(new THREE.Vector3(...PIVOT.position));
     const curve = new THREE.CatmullRomCurve3(ctrl, false, "catmullrom", 0.4);
-    const pts = curve.getPoints(300);
+    const pts = curve.getPoints(isLowTier() ? 120 : 300);
     return { points: pts, total: pts.length };
   }, []);
 
