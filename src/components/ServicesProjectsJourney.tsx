@@ -4,6 +4,7 @@ import { Html, Line, Points, PointMaterial } from "@react-three/drei";
 import * as THREE from "three";
 import { useScrollProgress } from "@/hooks/useScrollProgress";
 import { useMouseParallaxRef } from "@/hooks/useMouseParallax";
+import { isLowTier } from "@/hooks/useDeviceTier";
 
 const ServicesNebula = lazy(() => import("@/components/ServicesNebula"));
 
@@ -205,7 +206,7 @@ function Planet({
   return (
     <group position={body.position}>
       <mesh ref={glowRef}>
-        <sphereGeometry args={[1, 32, 32]} />
+        <sphereGeometry args={[1, 16, 16]} />
         <meshBasicMaterial
           color={body.color}
           transparent
@@ -215,7 +216,7 @@ function Planet({
         />
       </mesh>
       <mesh ref={meshRef}>
-        <sphereGeometry args={[1, 64, 64]} />
+        <sphereGeometry args={[1, isLowTier() ? 32 : 64, isLowTier() ? 32 : 64]} />
         <shaderMaterial
           ref={matRef}
           vertexShader={planetVertexShader}
@@ -233,8 +234,9 @@ function Planet({
 
 function AmbientDust() {
   const positions = useMemo(() => {
-    const arr = new Float32Array(1200 * 3);
-    for (let i = 0; i < 1200; i++) {
+    const count = isLowTier() ? 400 : 1200;
+    const arr = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
       arr[i * 3 + 0] = (Math.random() - 0.5) * 40;
       arr[i * 3 + 1] = (Math.random() - 0.5) * 25;
       arr[i * 3 + 2] = -Math.random() * 75 + 5;
@@ -276,7 +278,7 @@ function RouteLine({ progress }: { progress: number }) {
     // Pivote
     ctrl.push(new THREE.Vector3(...PIVOT.position));
     const curve = new THREE.CatmullRomCurve3(ctrl, false, "catmullrom", 0.4);
-    const pts = curve.getPoints(300);
+    const pts = curve.getPoints(isLowTier() ? 120 : 300);
     return { points: pts, total: pts.length };
   }, []);
 
@@ -304,48 +306,54 @@ function RouteLine({ progress }: { progress: number }) {
 
 function BodyLabel({
   body,
-  cameraPos,
-  cameraYaw,
+  cameraPosRef,
+  cameraYawRef,
 }: {
   body: Body;
-  cameraPos: THREE.Vector3;
-  cameraYaw: number;
+  cameraPosRef: React.MutableRefObject<THREE.Vector3>;
+  cameraYawRef: React.MutableRefObject<number>;
 }) {
-  // Pivote sin texto: no se renderiza label alguno.
-  if (!body.title) return null;
+  const lite = isLowTier();
+  const htmlRef = useRef<HTMLDivElement>(null);
 
-  // Direction from camera to body
-  const dx = body.position[0] - cameraPos.x;
-  const dz = body.position[2] - cameraPos.z;
-  // Facing vector of camera (yaw 0 = -Z, yaw π = +Z)
-  const fx = -Math.sin(cameraYaw);
-  const fz = -Math.cos(cameraYaw);
-  // Depth along camera facing direction
-  const depthInFront = dx * fx + dz * fz;
-
-  let opacity = 0;
-  if (depthInFront > -2 && depthInFront < 18) {
-    if (depthInFront < 4) {
-      opacity = Math.max(0, (depthInFront + 2) / 6);
-    } else {
-      opacity = Math.max(0, 1 - (depthInFront - 4) / 14);
+  useFrame(() => {
+    const el = htmlRef.current;
+    if (!el) return;
+    const cp = cameraPosRef.current;
+    const yaw = cameraYawRef.current;
+    const dx = body.position[0] - cp.x;
+    const dz = body.position[2] - cp.z;
+    const fx = -Math.sin(yaw);
+    const fz = -Math.cos(yaw);
+    const depthInFront = dx * fx + dz * fz;
+    let opacity = 0;
+    if (depthInFront > -2 && depthInFront < 18) {
+      if (depthInFront < 4) {
+        opacity = Math.max(0, (depthInFront + 2) / 6);
+      } else {
+        opacity = Math.max(0, 1 - (depthInFront - 4) / 14);
+      }
     }
-  }
+    el.style.opacity = String(opacity);
+  });
+
+  if (!body.title) return null;
 
   return (
     <Html
       position={body.position}
       center
-      distanceFactor={8}
+      distanceFactor={lite ? 11 : 8}
       style={{
         pointerEvents: "none",
-        opacity,
+        opacity: 0,
         transition: "opacity 300ms linear",
       }}
     >
       <div
+        ref={htmlRef}
         style={{
-          width: "260px",
+          width: lite ? "200px" : "260px",
           textAlign: "center",
           color: "#EDECE8",
           transform: `translateY(${body.position[1] > 0 ? "100px" : "-140px"})`,
@@ -366,7 +374,7 @@ function BodyLabel({
         <div
           style={{
             fontFamily: "'Arkitech', 'Inter', sans-serif",
-            fontSize: body.impact ? "40px" : "32px",
+            fontSize: body.impact ? (lite ? "28px" : "40px") : (lite ? "22px" : "32px"),
             letterSpacing: "0.12em",
             fontWeight: 300,
             lineHeight: 1,
@@ -384,9 +392,9 @@ function BodyLabel({
           style={{
             fontFamily: "'DM Sans', sans-serif",
             fontWeight: 300,
-            fontSize: "13px",
+            fontSize: lite ? "12px" : "13px",
             opacity: 0.75,
-            maxWidth: "240px",
+            maxWidth: lite ? "180px" : "240px",
             margin: "0 auto",
             lineHeight: 1.5,
           }}
@@ -457,8 +465,9 @@ function ProjectsOverlay({ progress }: { progress: number }) {
               : Math.max(0, 1 - (l - 0.55) * 3.5);
           const opacity = l > 0.9 ? 0 : rawOpacity;
 
-          const xOffset = i % 2 === 0 ? -120 : 120;
-          const yOffset = i % 3 === 0 ? -80 : i % 3 === 1 ? 60 : -30;
+          const lite = isLowTier();
+          const xOffset = (i % 2 === 0 ? -1 : 1) * (lite ? 60 : 120);
+          const yOffset = i % 3 === 0 ? (lite ? -50 : -80) : i % 3 === 1 ? (lite ? 40 : 60) : (lite ? -20 : -30);
           const visible = opacity > 0.01 && l <= 0.9;
 
           return (
@@ -466,10 +475,10 @@ function ProjectsOverlay({ progress }: { progress: number }) {
               key={project.id}
               className="absolute top-1/2 left-1/2"
               style={{
-                width: "min(560px, 70vw)",
-                height: "min(360px, 45vh)",
-                marginLeft: "calc(min(560px, 70vw) / -2)",
-                marginTop: "calc(min(360px, 45vh) / -2)",
+                width: lite ? "min(420px, 88vw)" : "min(560px, 70vw)",
+                height: lite ? "min(280px, 50vh)" : "min(360px, 45vh)",
+                marginLeft: lite ? "calc(min(420px, 88vw) / -2)" : "calc(min(560px, 70vw) / -2)",
+                marginTop: lite ? "calc(min(280px, 50vh) / -2)" : "calc(min(360px, 45vh) / -2)",
                 transform: `translate3d(${xOffset}px, ${yOffset}px, ${z}px)`,
                 opacity,
                 visibility: visible ? "visible" : "hidden",
@@ -547,7 +556,8 @@ function Scene({
   const lastActiveIdRef = useRef<string>("");
   const cameraPosVec = useRef(new THREE.Vector3());
   const cameraYawRef = useRef(0);
-  const [, force] = useState(0);
+  const lite = useMemo(() => isLowTier(), []);
+  const swayMul = lite ? 0.4 : 1;
 
   useFrame(() => {
     const p = progress;
@@ -563,8 +573,8 @@ function Scene({
       // ---- ACT I — avanzar con serpenteo ----
       act = "I";
       const pl = p / ACT_I_END; // 0..1
-      targetX = Math.sin(pl * Math.PI * 3) * 1.5;
-      targetY = Math.cos(pl * Math.PI * 2) * 0.8;
+      targetX = Math.sin(pl * Math.PI * 3) * 1.5 * swayMul;
+      targetY = Math.cos(pl * Math.PI * 2) * 0.8 * swayMul;
       targetZ = -pl * 55;
       targetYaw = 0;
     } else if (p < INFLEXION_END) {
@@ -577,8 +587,8 @@ function Scene({
       const zCurve = -55 + Math.sin(pl * Math.PI) * -3; // -55 → -58 → -55
       targetZ = zCurve;
       // X/Y: frena el serpenteo
-      targetX = Math.sin(Math.PI * 3) * 1.5 * (1 - eased);
-      targetY = Math.cos(Math.PI * 2) * 0.8 * (1 - eased);
+      targetX = Math.sin(Math.PI * 3) * 1.5 * swayMul * (1 - eased);
+      targetY = Math.cos(Math.PI * 2) * 0.8 * swayMul * (1 - eased);
       // Yaw: 0 → π
       targetYaw = eased * Math.PI;
       // Flash en el pico
@@ -588,8 +598,8 @@ function Scene({
       // ---- ACT II — volver mirando atrás ----
       act = "II";
       const pl = (p - INFLEXION_END) / (1 - INFLEXION_END); // 0..1
-      targetX = Math.sin(pl * Math.PI * 2.5 + Math.PI) * 1.5;
-      targetY = Math.cos(pl * Math.PI * 2 + Math.PI) * 0.8;
+      targetX = Math.sin(pl * Math.PI * 2.5 + Math.PI) * 1.5 * swayMul;
+      targetY = Math.cos(pl * Math.PI * 2 + Math.PI) * 0.8 * swayMul;
       // Z: -55 → -3
       targetZ = -55 + pl * 52;
       targetYaw = Math.PI;
@@ -638,9 +648,6 @@ function Scene({
       // Only flash changes frequently
       onStateChange({ act, activeBody: bestBody, flash });
     }
-
-    // Force re-render of labels with new cameraPos (labels read from props)
-    force((n) => (n + 1) % 1000000);
   });
 
   return (
@@ -657,8 +664,8 @@ function Scene({
         <BodyLabel
           key={`l-${b.id}`}
           body={b}
-          cameraPos={cameraPosVec.current}
-          cameraYaw={cameraYawRef.current}
+          cameraPosRef={cameraPosVec}
+          cameraYawRef={cameraYawRef}
         />
       ))}
     </>
@@ -745,11 +752,22 @@ const ServicesProjectsJourney = () => {
   const pivotScale = pivotVisible ? Math.pow(1 - pivotD, 0.6) : 0;
   const pivotOpacity = pivotVisible ? Math.pow(1 - pivotD, 1.2) : 0;
 
+  const lite = isLowTier();
+  const fov =
+    typeof window !== "undefined"
+      ? window.innerWidth < 480
+        ? 75
+        : window.innerWidth < 768
+        ? 65
+        : 55
+      : 55;
+  const sectionHeight = lite ? "600vh" : "900vh";
+
   return (
     <section
       ref={sectionRef}
       className="relative"
-      style={{ height: "900vh", contain: "layout paint" }}
+      style={{ height: sectionHeight, contain: "layout paint" }}
     >
       <div
         className="sticky top-0 w-full h-screen overflow-hidden"
@@ -764,9 +782,9 @@ const ServicesProjectsJourney = () => {
           }}
         >
           <Canvas
-            dpr={[1, 1.5]}
+            dpr={lite ? [1, 1] : [1, 1.5]}
             gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
-            camera={{ fov: 55, near: 0.1, far: 200, position: [0, 0, 0] }}
+            camera={{ fov, near: 0.1, far: 200, position: [0, 0, 0] }}
             style={{ background: "transparent" }}
           >
             <Scene progress={progress} onStateChange={setState} />

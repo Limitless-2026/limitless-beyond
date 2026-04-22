@@ -7,6 +7,15 @@ const CustomCursor = () => {
   const target = useRef({ x: -100, y: -100 });
 
   useEffect(() => {
+    // Skip en dispositivos touch — no hay cursor visible y el RAF
+    // infinito desperdicia CPU/batería en mobile.
+    const isTouch =
+      typeof window !== "undefined" &&
+      (("ontouchstart" in window) ||
+        (typeof window.matchMedia === "function" &&
+          window.matchMedia("(hover: none)").matches));
+    if (isTouch) return;
+
     const onMove = (e: MouseEvent) => {
       target.current.x = e.clientX;
       target.current.y = e.clientY;
