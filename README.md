@@ -1,3 +1,3 @@
-# Welcome to your Lovable project
+# Limitless Studio
 
-TODO: Document your project here
+Sitio web de Limitless Studio.
