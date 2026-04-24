@@ -5,7 +5,6 @@ export type DeviceTier = "low" | "high";
 function detectTier(): DeviceTier {
   if (typeof window === "undefined") return "high";
   try {
-    const narrow = window.innerWidth < 768;
     const lowCores =
       typeof navigator !== "undefined" &&
       typeof navigator.hardwareConcurrency === "number" &&
@@ -17,7 +16,9 @@ function detectTier(): DeviceTier {
     const reducedMotion =
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    return narrow || lowCores || noHover || reducedMotion ? "low" : "high";
+    // "narrow" (viewport chico) no implica dispositivo lento: puede ser desktop con ventana chica.
+    // Low-tier se decide por señales de hardware / input / accesibilidad.
+    return lowCores || noHover || reducedMotion ? "low" : "high";
   } catch {
     return "high";
   }
