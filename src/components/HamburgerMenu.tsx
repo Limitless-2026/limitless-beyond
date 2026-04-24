@@ -114,10 +114,11 @@ const HamburgerMenu = () => {
           {/* Header */}
           <div className="flex items-start justify-between px-6 sm:px-8 pt-6 pb-3 sm:pt-8 sm:pb-4 shrink-0">
             <div className="flex items-center gap-3">
-              <span
-                aria-hidden
-                className="block w-2 h-2 rounded-full bg-primary"
-                style={{ boxShadow: "0 0 12px hsl(var(--primary) / 0.6)" }}
+              <img
+                src="/images/Logo%20(3).png"
+                alt="Limitless"
+                className="h-7 w-7 object-contain"
+                draggable={false}
               />
               <div
                 className="text-[10px] tracking-[0.4em] uppercase text-foreground/60 font-light"

@@ -132,9 +132,20 @@ const V7 = () => {
         className="fixed top-6 left-6 z-50 pointer-events-none"
         style={{ opacity: badgeOpacity, transition: "opacity 200ms linear" }}
       >
-        <span className="text-[10px] tracking-[0.4em] uppercase text-foreground/50 font-light">
-          Limitless · v7
-        </span>
+        <div className="flex items-center gap-3">
+          <img
+            src="/images/Logo%20(3).png"
+            alt="Limitless"
+            className="h-6 w-6 object-contain opacity-80"
+            draggable={false}
+          />
+          <img
+            src="/images/LIMITLESS.png"
+            alt="Limitless Studio"
+            className="h-4 object-contain opacity-80"
+            draggable={false}
+          />
+        </div>
       </div>
 
       <div
