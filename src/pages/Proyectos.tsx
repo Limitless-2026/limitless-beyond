@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import HamburgerMenu from "@/components/HamburgerMenu";
 import StarfieldParallax from "@/components/StarfieldParallax";
 import ProjectStation from "@/components/ProjectStation";
-import { PROJECTS } from "@/data/projects";
+import { PROJECTS_ORDERED as PROJECTS } from "@/data/projects";
 
 const Proyectos = () => {
   const [heroIn, setHeroIn] = useState(false);

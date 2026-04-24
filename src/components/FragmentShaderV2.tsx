@@ -1,6 +1,7 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+import { HERO_SCROLL_VH } from "@/constants/heroScroll";
 
 const vertexShader = /* glsl */ `
 varying vec2 vUv;
@@ -10,16 +11,33 @@ void main() {
 }
 `;
 
-// COSMIC SINGULARITY v2 — Awwwards-tier (base v1) + crossfade a deep space starfield
-const fragmentShader = /* glsl */ `
+/** Octavas / capas reducidas en `low` para aliviar fragment shader en mobile. */
+function buildFragmentShader(low: boolean): string {
+  const header = low
+    ? `#define FBM_OCTAVES 4
+#define FBM3_OCTAVES 3
+#define WARPSTAR_LAYERS 3
+#define DEEPSTAR_LAYERS 2
+#define CHROMA 0
+#define MOTE_LAYERS 1
+`
+    : `#define FBM_OCTAVES 6
+#define FBM3_OCTAVES 5
+#define WARPSTAR_LAYERS 5
+#define DEEPSTAR_LAYERS 3
+#define CHROMA 1
+#define MOTE_LAYERS 2
+`;
+
+  return `${header}
 precision highp float;
 
 uniform float uTime;
 uniform vec2  uMouse;
 uniform vec2  uResolution;
-uniform float uReveal;     // 0 → 1 intro
-uniform float uScroll;     // 0 → 1 hero scroll progress
-uniform float uStarfield;  // 0 → 1 crossfade nebula → black starfield
+uniform float uReveal;
+uniform float uScroll;
+uniform float uStarfield;
 uniform float uPixelRatio;
 
 varying vec2 vUv;
@@ -27,7 +45,6 @@ varying vec2 vUv;
 #define PI 3.14159265359
 #define TAU 6.28318530718
 
-// ─── Hash / Noise ───────────────────────────────────────────
 float hash21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 vec2  hash22(vec2 p) {
   p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
@@ -63,12 +80,12 @@ const mat2 ROT = mat2(0.8, 0.6, -0.6, 0.8);
 
 float fbm(vec2 p) {
   float v = 0.0, a = 0.5;
-  for (int i = 0; i < 6; i++) { v += a * vnoise(p); p = ROT * p * 2.0; a *= 0.5; }
+  for (int i = 0; i < FBM_OCTAVES; i++) { v += a * vnoise(p); p = ROT * p * 2.0; a *= 0.5; }
   return v;
 }
 float fbm3(vec3 p) {
   float v = 0.0, a = 0.5;
-  for (int i = 0; i < 5; i++) { v += a * vnoise3(p); p *= 2.03; a *= 0.5; }
+  for (int i = 0; i < FBM3_OCTAVES; i++) { v += a * vnoise3(p); p *= 2.03; a *= 0.5; }
   return v;
 }
 
@@ -113,7 +130,8 @@ vec3 warpStars(vec2 p, float t, float scroll, float reveal) {
   vec3 cWarm  = vec3(1.0, 0.7, 0.85);
   vec3 cCool  = vec3(0.7, 0.8, 1.0);
 
-  for (float i = 0.0; i < 5.0; i++) {
+  for (int si = 0; si < WARPSTAR_LAYERS; si++) {
+    float i = float(si);
     float depth = 0.6 + i * 0.6;
     float zoomIn = 1.0 - scroll * 0.65 / depth;
     vec2 sp = p / max(zoomIn, 0.05);
@@ -152,13 +170,13 @@ vec3 warpStars(vec2 p, float t, float scroll, float reveal) {
   return col;
 }
 
-// ─── Quiet starfield (deep space, después de cruzar) ────────
 vec3 deepStars(vec2 st, float t) {
   vec3 col = vec3(0.0);
   vec3 cWhite = vec3(1.0, 0.96, 1.0);
   vec3 cCool  = vec3(0.75, 0.85, 1.0);
 
-  for (float i = 0.0; i < 3.0; i++) {
+  for (int si = 0; si < DEEPSTAR_LAYERS; si++) {
+    float i = float(si);
     float density = 80.0 + i * 70.0;
     float drift = t * 0.003 * (i + 1.0) + uScroll * 0.4;
     vec2 sp = st * density + vec2(drift, drift * 0.5);
@@ -190,30 +208,24 @@ void main() {
   vec2 mouse = (uMouse - 0.5) * 2.0;
   vec2 parallax = mouse * 0.025 * (1.0 - scroll * 0.7);
 
-  // ── Mouse gravitational pull on the nebula ──
   vec2 mouseWorld = mouse * 0.55;
   vec2 toMouse = st - mouseWorld;
   float dM = length(toMouse);
   vec2 mousePull = -toMouse * exp(-dM * 2.2) * 0.18 * (1.0 - scroll * 0.5);
 
-  // ── DIVE INTO THE STAR ──
-  // Para acercarnos de verdad, sampleamos una zona cada vez más chica del shader.
-  float zoomIn = 1.0 + scroll * 14.0;       // 1 → 15 (penetración profunda)
+  float zoomIn = 1.0 + scroll * 14.0;
   vec2 center = vec2(0.0, 0.04 - scroll * 0.04) + parallax * 0.5 + mousePull * 0.4;
   vec2 p = (st - center) / zoomIn;
 
   float r = length(p);
 
-  // ── Paleta refinada Limitless: negro frío + violeta eléctrico + magenta ──
-  // Sin warm/amber/rosa pastel para evitar el look psicodélico hippie.
-  vec3 cVoid     = vec3(0.004, 0.003, 0.012);   // #08080C-ish
+  vec3 cVoid     = vec3(0.004, 0.003, 0.012);
   vec3 cDeepBlue = vec3(0.012, 0.010, 0.045);
   vec3 cIndigo   = vec3(0.08, 0.04, 0.20);
-  vec3 cViolet   = vec3(0.48, 0.18, 1.00);      // #7B2FFF
-  vec3 cMagenta  = vec3(0.78, 0.00, 0.48);      // #C8007A
-  vec3 cWhiteHot = vec3(0.96, 0.94, 1.00);      // blanco hueso frío
+  vec3 cViolet   = vec3(0.48, 0.18, 1.00);
+  vec3 cMagenta  = vec3(0.78, 0.00, 0.48);
+  vec3 cWhiteHot = vec3(0.96, 0.94, 1.00);
 
-  // ── NEBULA SCENE ──
   vec2 stZoom = (st - center) / zoomIn;
 
   float bgClouds = fbm(stZoom * 1.0 + mousePull * 1.5 + vec2(t * 0.004, t * 0.003));
@@ -222,14 +234,20 @@ void main() {
   nebula += warpStars(stZoom * 0.5 - parallax * 0.3, t, scroll, reveal);
 
   float zoomNeb = 1.0 / max(zoomIn * 0.7, 0.08);
-  float aberr = 0.012 + scroll * 0.04;
   vec2 dir = normalize(p + 0.0001);
+#if CHROMA == 1
+  float aberr = 0.012 + scroll * 0.04;
   vec2 pR = p - dir * aberr * 0.5;
   vec2 pG = p;
   vec2 pB = p + dir * aberr * 0.5;
   float densR = sampleNebula(pR, t, zoomNeb, reveal);
   float densG = sampleNebula(pG, t, zoomNeb, reveal);
   float densB = sampleNebula(pB, t, zoomNeb, reveal);
+  vec3 nebContrib = vec3(densR, densG, densB);
+#else
+  float densG = sampleNebula(p, t, zoomNeb, reveal);
+  vec3 nebContrib = vec3(densG);
+#endif
 
   vec3 nebOuter = mix(cIndigo, cViolet, smoothstep(0.0, 0.5, densG));
   vec3 nebMid   = mix(cViolet, cMagenta, smoothstep(0.3, 0.8, densG));
@@ -238,7 +256,6 @@ void main() {
   vec3 nebColor = mix(nebHot, nebMid, radialT);
   nebColor = mix(nebColor, nebOuter, smoothstep(0.4, 0.9, radialT));
 
-  vec3 nebContrib = vec3(densR, densG, densB) * 1.0;
   nebula += nebColor * nebContrib;
 
   float innerHot = pow(densG, 2.5) * exp(-r * 3.0) * reveal;
@@ -273,7 +290,8 @@ void main() {
   float ring = exp(-pow((r - ringR) / 0.04, 2.0)) * (1.0 - ringT) * reveal * 0.4;
   nebula += mix(cViolet, cMagenta, ringT) * ring;
 
-  for (float i = 0.0; i < 2.0; i++) {
+  for (int mi = 0; mi < MOTE_LAYERS; mi++) {
+    float i = float(mi);
     vec2 du = st * (10.0 + i * 7.0)
             + vec2(t * 0.012 * (i + 1.0), t * 0.008)
             + parallax * (4.0 + i * 3.0);
@@ -291,27 +309,21 @@ void main() {
   nebula += cMagenta * edge * scroll * 0.15;
   nebula += cViolet * edge * scroll * 0.1;
 
-  // ── DEEP SPACE SCENE (después de cruzar) ──
   vec3 space = vec3(0.0);
   space += deepStars(st - parallax * 0.3, t);
-  // tenue vignette negro
   float vigSpace = smoothstep(1.3, 0.4, length(st));
   space *= mix(0.85, 1.0, vigSpace);
 
-  // ── CROSSFADE ──
   float sf = clamp(uStarfield, 0.0, 1.0);
   vec3 color = mix(nebula, space, sf);
 
-  // Grain
   float grain = (hash21(uv * uResolution + fract(t)) - 0.5) * 0.024;
   color += grain * (1.0 - sf * 0.5);
 
-  // ACES-approx tone-map (skip when in deep space para mantener negro puro)
   vec3 x = max(color - 0.004, 0.0);
   vec3 toned = (x * (6.2 * x + 0.5)) / (x * (6.2 * x + 1.7) + 0.06);
   color = mix(toned, color, sf * 0.8);
 
-  // Color grading sólo nebula
   float lum = dot(color, vec3(0.299, 0.587, 0.114));
   vec3 shadow    = vec3(0.92, 0.96, 1.06);
   vec3 highlight = vec3(1.06, 1.0,  0.96);
@@ -324,14 +336,20 @@ void main() {
   gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
 }
 `;
+}
 
-const FragmentShaderMeshV2 = () => {
+export type NebulaPerf = "low" | "high";
+
+const FragmentShaderMeshV2 = ({ perf = "high" }: { perf?: NebulaPerf }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const { size, viewport } = useThree();
   const startTime = useRef(Date.now());
   const smoothMouse = useRef(new THREE.Vector2(0.5, 0.5));
-  const smoothScroll = useRef(0);
-  const smoothStarfield = useRef(0);
+
+  const fragmentShader = useMemo(
+    () => buildFragmentShader(perf === "low"),
+    [perf],
+  );
 
   const uniforms = useMemo(
     () => ({
@@ -344,18 +362,17 @@ const FragmentShaderMeshV2 = () => {
       uPixelRatio: { value: viewport.dpr || 1 },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [],
   );
 
-  // Mouse global (window) — la nebulosa reacciona siempre, no sólo sobre el plano
-  useMemo(() => {
+  useEffect(() => {
     const onMove = (e: MouseEvent) => {
       smoothMouse.current.set(
         e.clientX / window.innerWidth,
-        1 - e.clientY / window.innerHeight
+        1 - e.clientY / window.innerHeight,
       );
     };
-    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mousemove", onMove, { passive: true });
     return () => window.removeEventListener("mousemove", onMove);
   }, []);
 
@@ -368,17 +385,13 @@ const FragmentShaderMeshV2 = () => {
 
     const sy = window.scrollY;
     const vh = window.innerHeight;
+    const heroMax = vh * HERO_SCROLL_VH;
+    const scrollNorm = Math.min(1, Math.max(0, sy / heroMax));
+    uniforms.uScroll.value = scrollNorm;
 
-    // Hero scroll: 0 → 1 sobre 1.8vh — un poco más largo para sentir el dive
-    const targetScroll = Math.max(0, Math.min(1, sy / (vh * 1.8)));
-    smoothScroll.current += (targetScroll - smoothScroll.current) * 0.08;
-    uniforms.uScroll.value = smoothScroll.current;
-
-    // Starfield: crossfade MUY suave, ventana ancha (1.5vh)
-    const sfTarget = Math.max(0, Math.min(1, (sy - vh * 1.8) / (vh * 1.5)));
-    // Lerp más lento para que la transición sea bien gradual
-    smoothStarfield.current += (sfTarget - smoothStarfield.current) * 0.04;
-    uniforms.uStarfield.value = smoothStarfield.current;
+    // Alineado con V7 (nebulosa ~<0.89): crossfade shader ↔ capas React / starfield
+    const sfTarget = Math.min(1, Math.max(0, (scrollNorm - 0.82) / 0.1));
+    uniforms.uStarfield.value = sfTarget;
 
     const revealStart = 0.2;
     const revealDuration = 3.5;
@@ -390,6 +403,7 @@ const FragmentShaderMeshV2 = () => {
     <mesh ref={meshRef}>
       <planeGeometry args={[2, 2]} />
       <shaderMaterial
+        key={perf}
         vertexShader={vertexShader}
         fragmentShader={fragmentShader}
         uniforms={uniforms}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useScrollProgress } from "@/hooks/useScrollProgress";
 
 const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
@@ -18,7 +18,15 @@ const QUESTION_WORDS_BOT = ["PARA", "CRUZAR?"];
  */
 const CosmicFooterV2 = () => {
   const sectionRef = useRef<HTMLElement>(null);
+  const stickyRef = useRef<HTMLDivElement>(null);
+  const parallaxBgRef = useRef<HTMLDivElement>(null);
+  const parallaxWordRef = useRef<HTMLDivElement>(null);
   const progress = useScrollProgress(sectionRef);
+
+  const sectionVisibleRef = useRef(false);
+  const parallaxTarget = useRef({ x: 0, y: 0 });
+  const parallaxCurrent = useRef({ x: 0, y: 0 });
+  const parallaxRafRef = useRef(0);
 
   // Halo rotation — tick lento (≈30ms) sin re-renders en cascada.
   const [haloAngle, setHaloAngle] = useState(0);
@@ -34,6 +42,108 @@ const CosmicFooterV2 = () => {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
+  }, []);
+
+  // Parallax de fondo + wordmark (V7 usa este footer). window + rect del sticky:
+  // evita que (pointer: fine) falle en Windows táctil y capas hijas con hit-testing raro.
+  useLayoutEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+
+    const section = sectionRef.current;
+    if (!section) return;
+
+    const BG_PARALLAX_PX = 62;
+    const BG_PARALLAX_PY = 48;
+    const WM_PARALLAX_PX = 18;
+    const WM_PARALLAX_PY = 14;
+    const LERP = 0.16;
+
+    const tick = () => {
+      const cur = parallaxCurrent.current;
+      const tgt = parallaxTarget.current;
+      cur.x += (tgt.x - cur.x) * LERP;
+      cur.y += (tgt.y - cur.y) * LERP;
+
+      const settled =
+        Math.abs(cur.x) < 0.002 &&
+        Math.abs(cur.y) < 0.002 &&
+        Math.abs(tgt.x) < 0.002 &&
+        Math.abs(tgt.y) < 0.002;
+
+      if (!settled) {
+        parallaxRafRef.current = requestAnimationFrame(tick);
+      } else {
+        parallaxRafRef.current = 0;
+      }
+
+      const bg = parallaxBgRef.current;
+      const wm = parallaxWordRef.current;
+      if (bg) {
+        const mx = cur.x;
+        const my = cur.y;
+        bg.style.transform = `translate3d(${mx * BG_PARALLAX_PX}px, ${my * BG_PARALLAX_PY}px, 0) scale(1.18)`;
+      }
+      if (wm) {
+        wm.style.transform = `translate3d(${-cur.x * WM_PARALLAX_PX}px, ${-cur.y * WM_PARALLAX_PY}px, 0)`;
+      }
+    };
+
+    const startTick = () => {
+      if (!parallaxRafRef.current) parallaxRafRef.current = requestAnimationFrame(tick);
+    };
+
+    const io = new IntersectionObserver(
+      ([e]) => {
+        sectionVisibleRef.current = e.isIntersecting;
+        if (!e.isIntersecting) {
+          parallaxTarget.current.x = 0;
+          parallaxTarget.current.y = 0;
+          parallaxCurrent.current.x = 0;
+          parallaxCurrent.current.y = 0;
+          startTick();
+        }
+      },
+      { threshold: 0.04, rootMargin: "12% 0px 12% 0px" },
+    );
+    io.observe(section);
+
+    const onPointer = (e: MouseEvent) => {
+      if (!sectionVisibleRef.current) {
+        parallaxTarget.current.x = 0;
+        parallaxTarget.current.y = 0;
+        startTick();
+        return;
+      }
+      const sticky = stickyRef.current;
+      if (!sticky) return;
+      const r = sticky.getBoundingClientRect();
+      if (r.width < 1 || r.height < 1) return;
+      const { clientX: x, clientY: y } = e;
+      if (x < r.left || x > r.right || y < r.top || y > r.bottom) {
+        parallaxTarget.current.x = 0;
+        parallaxTarget.current.y = 0;
+        startTick();
+        return;
+      }
+      parallaxTarget.current.x = ((x - r.left) / r.width - 0.5) * 2;
+      parallaxTarget.current.y = ((y - r.top) / r.height - 0.5) * 2;
+      startTick();
+    };
+
+    startTick();
+    window.addEventListener("mousemove", onPointer, { passive: true });
+
+    return () => {
+      io.disconnect();
+      window.removeEventListener("mousemove", onPointer);
+      cancelAnimationFrame(parallaxRafRef.current);
+      parallaxRafRef.current = 0;
+    };
   }, []);
 
   // Vibración orgánica del punto durante el colapso (±0.5px).
@@ -185,12 +295,45 @@ const CosmicFooterV2 = () => {
         }
       `}</style>
       <div
+        ref={stickyRef}
         className="sticky top-0 left-0 w-full h-screen overflow-hidden bg-background"
         style={{
           contain: "layout paint",
           transform: "translateZ(0)",
         }}
       >
+        {/* Fondo cósmico en profundidad — parallax con el mouse */}
+        <div
+          className="absolute inset-0 pointer-events-none overflow-hidden"
+          style={{ zIndex: 0 }}
+        >
+          <div
+            ref={parallaxBgRef}
+            className="absolute left-1/2 top-1/2 will-change-transform"
+            style={{
+              width: "130%",
+              height: "130%",
+              marginLeft: "-65%",
+              marginTop: "-65%",
+              background: `
+                radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.45) 50%, transparent 51%),
+                radial-gradient(1px 1px at 70% 80%, rgba(255,255,255,0.3) 50%, transparent 51%),
+                radial-gradient(1px 1px at 40% 60%, rgba(200,200,255,0.35) 50%, transparent 51%),
+                radial-gradient(1px 1px at 88% 15%, rgba(255,255,255,0.22) 50%, transparent 51%),
+                radial-gradient(ellipse 85% 55% at 30% 35%, hsl(var(--primary) / 0.14) 0%, transparent 55%),
+                radial-gradient(ellipse 70% 50% at 75% 65%, hsl(330 100% 39% / 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse 100% 80% at 50% 100%, rgba(0,0,0,0.85) 0%, transparent 45%),
+                radial-gradient(circle at 50% 40%, rgba(20, 12, 40, 0.9) 0%, rgba(2, 1, 8, 1) 72%)
+              `,
+              backgroundSize:
+                "180px 180px, 220px 220px, 160px 160px, 200px 200px, auto, auto, auto, auto",
+              backgroundPosition:
+                "0 0, 40px 60px, 80px 20px, 20px 100px, 0 0, 0 0, 0 0, 0 0",
+              transform: "translate3d(0,0,0) scale(1.14)",
+            }}
+          />
+        </div>
+
         {/* Overlay negro creciendo durante colapso */}
         <div
           className="absolute inset-0 bg-background pointer-events-none"
@@ -514,9 +657,10 @@ const CosmicFooterV2 = () => {
           />
         )}
 
-        {/* Wordmark de fondo */}
+        {/* Wordmark de fondo — leve parallax inverso para sensación de capas */}
         <div
-          className="absolute inset-0 flex items-center justify-center pointer-events-none select-none"
+          ref={parallaxWordRef}
+          className="absolute inset-0 flex items-center justify-center pointer-events-none select-none will-change-transform"
           style={{ zIndex: 0 }}
         >
           <span

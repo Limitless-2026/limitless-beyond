@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import Lenis from "lenis";
+import { isLowTier } from "@/hooks/useDeviceTier";
 
 /**
  * Global smooth-scroll provider powered by Lenis.
@@ -12,18 +13,18 @@ const SmoothScrollProvider = ({ children }: { children: React.ReactNode }) => {
     // Respect prefers-reduced-motion — skip Lenis entirely.
     if (
       typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+      (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || isLowTier())
     ) {
       return;
     }
 
     const lenis = new Lenis({
-      duration: 1.4,
+      duration: 1.05,
       easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
-      wheelMultiplier: 0.45,
+      wheelMultiplier: 0.52,
       touchMultiplier: 1.1,
-      lerp: 0.09,
+      lerp: 0.14,
     });
 
     // Expose for other hooks to subscribe to.

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import HamburgerMenu from "@/components/HamburgerMenu";
 import ProjectStationV3 from "@/components/ProjectStationV3";
-import { PROJECTS } from "@/data/projects";
+import { PROJECTS_ORDERED as PROJECTS } from "@/data/projects";
 
 const ProyectosV3 = () => {
   const [heroIn, setHeroIn] = useState(false);

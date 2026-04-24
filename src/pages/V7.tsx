@@ -6,6 +6,8 @@ import ServicesProjectsJourneyV7 from "@/components/ServicesProjectsJourneyV7";
 import AboutConstellation from "@/components/AboutConstellation";
 import CosmicFooterV2 from "@/components/CosmicFooterV2";
 import Preloader from "@/components/Preloader";
+import { HERO_SCROLL_VH } from "@/constants/heroScroll";
+import { isLowTier } from "@/hooks/useDeviceTier";
 
 function isWebGLAvailable(): boolean {
   try {
@@ -20,44 +22,33 @@ function isWebGLAvailable(): boolean {
 const HeroWebGLV2 = lazy(() => import("@/components/HeroWebGLV2"));
 
 const V7 = () => {
+  const lite = isLowTier();
   const [useWebGL, setUseWebGL] = useState<boolean | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [showPreloader, setShowPreloader] = useState(true);
 
   useEffect(() => {
-    setUseWebGL(isWebGLAvailable());
+    setUseWebGL(lite ? false : isWebGLAvailable());
   }, []);
 
   useEffect(() => {
+    const max = () => window.innerHeight * HERO_SCROLL_VH;
     let raf = 0;
-    let target = 0;
-    let current = 0;
-    let pendingFrame = 0;
-    const tick = () => {
-      current += (target - current) * 0.18;
-      if (Math.abs(target - current) < 0.0005) current = target;
-      setScrollProgress(current);
-      if (current !== target) {
-        raf = requestAnimationFrame(tick);
-      } else {
-        raf = 0;
-      }
+    const commit = () => {
+      raf = 0;
+      const p = Math.max(0, Math.min(1, window.scrollY / max()));
+      setScrollProgress(p);
     };
     const onScroll = () => {
-      if (pendingFrame) return;
-      pendingFrame = requestAnimationFrame(() => {
-        pendingFrame = 0;
-        const max = window.innerHeight * 3.5;
-        target = Math.max(0, Math.min(1, window.scrollY / max));
-        if (!raf) raf = requestAnimationFrame(tick);
-      });
+      if (!raf) raf = requestAnimationFrame(commit);
     };
-    onScroll();
+    commit();
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", commit);
     return () => {
       window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", commit);
       if (raf) cancelAnimationFrame(raf);
-      if (pendingFrame) cancelAnimationFrame(pendingFrame);
     };
   }, []);
 
@@ -107,20 +98,20 @@ const V7 = () => {
           background: "rgb(2,1,5)",
         }}
       >
-        {useWebGL === null ? null : useWebGL ? (
-          <Suspense fallback={null}>
-            <HeroWebGLV2 />
-          </Suspense>
-        ) : (
+        {useWebGL === null ? null : !useWebGL ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <p className="text-foreground/50 text-sm">WebGL no soportado en este navegador</p>
           </div>
-        )}
+        ) : nebulaVisible ? (
+          <Suspense fallback={null}>
+            <HeroWebGLV2 />
+          </Suspense>
+        ) : null}
       </div>
 
       <StarfieldParallax visible={scrollProgress > 0.91} />
 
-      <CustomCursor />
+      {!lite && <CustomCursor />}
       <HamburgerMenu />
 
       <div
@@ -179,12 +170,6 @@ const V7 = () => {
                 están para romperse
               </span>
             </h1>
-            <p
-              className="mt-8 text-sm md:text-base text-foreground/85 max-w-md mx-auto font-light"
-              style={{ opacity: subOpacity, textShadow: "0 2px 20px rgba(0,0,0,0.7)" }}
-            >
-              Movete con el mouse · Scrolleá para atravesar
-            </p>
           </div>
 
           <div
@@ -260,7 +245,29 @@ const V7 = () => {
       <div className="relative z-0 h-[420vh]" />
       <div className="relative z-0 h-[80vh] bg-black" />
 
-      <ServicesProjectsJourneyV7 />
+      {!lite ? (
+        <ServicesProjectsJourneyV7 />
+      ) : (
+        <section className="relative z-10 bg-black py-20 px-6 md:px-12">
+          <div className="max-w-3xl mx-auto">
+            <p className="text-[10px] tracking-[0.4em] uppercase text-foreground/50 font-light">
+              Servicios · Proyectos
+            </p>
+            <h2 className="mt-4 text-4xl md:text-6xl font-extralight tracking-tight text-foreground">
+              Modo liviano
+            </h2>
+            <p className="mt-6 text-sm md:text-base text-foreground/60 font-light leading-relaxed">
+              En celular mostramos una versión más liviana para evitar tirones.
+            </p>
+            <a
+              href="/proyectos"
+              className="mt-10 inline-flex items-center gap-3 border border-foreground/20 px-6 py-3 text-xs tracking-[0.35em] uppercase text-foreground/80 font-light hover:border-primary hover:text-foreground transition-colors"
+            >
+              Ver proyectos →
+            </a>
+          </div>
+        </section>
+      )}
 
       <div className="h-[20vh]" />
       <AboutConstellation />

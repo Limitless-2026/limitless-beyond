@@ -10,13 +10,18 @@ import ServiceModal from "@/components/ServiceModal";
 
 const ServicesNebula = lazy(() => import("@/components/ServicesNebula"));
 
-// Project imagery
-import imgNebulaOS from "@/assets/projects/nebula-os.jpg";
-import imgAuroraCommerce from "@/assets/projects/aurora-commerce.jpg";
-import imgPulsarStudio from "@/assets/projects/pulsar-studio.jpg";
-import imgQuantumBank from "@/assets/projects/quantum-bank.jpg";
-import imgHeliosHealth from "@/assets/projects/helios-health.jpg";
-import imgCosmosTravel from "@/assets/projects/cosmos-travel.jpg";
+// Project imagery (usa `public/images/` + placeholder cuando falte)
+const PROJECT_IMG = {
+  "01": "/images/1-AcerosCas.png",
+  "02": "/placeholder.svg", // Beltrán: sin imagen por ahora
+  "03": "/images/3-Dolton.png",
+  "04": "/images/4-Assitech.png",
+  "05": "/images/5-TAOL.png",
+  "06": "/placeholder.svg", // Mati Emprendimientos: sin imagen por ahora
+  "07": "/images/7-OCC.png",
+  "08": "/images/8-ALaTremenda.png",
+  "09": "/images/9-Morph.png",
+} as const;
 
 // ============================================================
 // DATA
@@ -67,12 +72,15 @@ const PIVOT: Body = {
 };
 
 const PROJECTS: Body[] = [
-  { id: "p1", number: "01", title: "NEBULA OS",       desc: "Plataforma SaaS · 2025",  position: [ 4,  3, -48], scale: 1.1, color: "#7B2FFF", act: "II", image: imgNebulaOS },
-  { id: "p2", number: "02", title: "AURORA COMMERCE", desc: "E-commerce · 2024",       position: [-5,  1, -40], scale: 1.3, color: "#9A5BFF", act: "II", image: imgAuroraCommerce },
-  { id: "p3", number: "03", title: "PULSAR STUDIO",   desc: "Branding & Web · 2024",   position: [ 3, -3, -32], scale: 0.9, color: "#7B2FFF", act: "II", image: imgPulsarStudio },
-  { id: "p4", number: "04", title: "QUANTUM BANK",    desc: "Fintech · 2025",          position: [-6,  2, -24], scale: 1.0, color: "#5A1FD8", act: "II", image: imgQuantumBank },
-  { id: "p5", number: "05", title: "HELIOS HEALTH",   desc: "Producto digital · 2023", position: [ 2,  3, -15], scale: 1.2, color: "#9A5BFF", act: "II", image: imgHeliosHealth },
-  { id: "p6", number: "06", title: "COSMOS TRAVEL",   desc: "Marketplace · 2025",      position: [-3, -2,  -6], scale: 1.0, color: "#7B2FFF", act: "II", image: imgCosmosTravel },
+  { id: "p1", number: "01", title: "ACEROS CAS",        desc: "Sitio web", position: [ 4,  3, -48], scale: 1.1, color: "#7B2FFF", act: "II", image: PROJECT_IMG["01"] },
+  { id: "p2", number: "02", title: "BELTRÁN",           desc: "Próximamente", position: [-5,  1, -40], scale: 1.3, color: "#9A5BFF", act: "II", image: PROJECT_IMG["02"] },
+  { id: "p3", number: "03", title: "DOLTON",            desc: "Web publicada", position: [ 3, -3, -32], scale: 0.9, color: "#7B2FFF", act: "II", image: PROJECT_IMG["03"] },
+  { id: "p4", number: "04", title: "ASSITECH",          desc: "Web publicada", position: [-6,  2, -24], scale: 1.0, color: "#5A1FD8", act: "II", image: PROJECT_IMG["04"] },
+  { id: "p5", number: "05", title: "TAOL",              desc: "Web publicada", position: [ 2,  3, -15], scale: 1.2, color: "#9A5BFF", act: "II", image: PROJECT_IMG["05"] },
+  { id: "p6", number: "06", title: "EMPRENDIMIENTOS",   desc: "Próximamente", position: [-3, -2,  -6], scale: 1.0, color: "#7B2FFF", act: "II", image: PROJECT_IMG["06"] },
+  { id: "p7", number: "07", title: "OCC",               desc: "Web publicada", position: [ 5,  2, -56], scale: 1.15, color: "#9A5BFF", act: "II", image: PROJECT_IMG["07"] },
+  { id: "p8", number: "08", title: "A LA TREMENDA",     desc: "Web publicada", position: [-4, -2, -64], scale: 0.95, color: "#7B2FFF", act: "II", image: PROJECT_IMG["08"] },
+  { id: "p9", number: "09", title: "MORPH",             desc: "Web publicada", position: [ 3, -1, -72], scale: 1.05, color: "#5A1FD8", act: "II", image: PROJECT_IMG["09"] },
 ];
 
 const ACT_I_BODIES: Body[] = [...SERVICES];
@@ -85,6 +93,7 @@ const INFLEXION_END = 0.58;
 // ============================================================
 
 function usePlanetTextures() {
+  const { gl } = useThree();
   const lite = isLowTier();
   const suffix = lite ? "@1k" : "";
   // useTexture acepta record con paths → record con texturas
@@ -92,26 +101,42 @@ function usePlanetTextures() {
     mercury: `/textures/planets/mercury${suffix}.jpg`,
     venus:   `/textures/planets/venus${suffix}.jpg`,
     earth:   `/textures/planets/earth${suffix}.jpg`,
+    earthNormal: "/textures/planets/earth_normal.jpg",
     mars:    `/textures/planets/mars${suffix}.jpg`,
     jupiter: `/textures/planets/jupiter${suffix}.jpg`,
     saturn:  `/textures/planets/saturn${suffix}.jpg`,
     saturnRing: "/textures/planets/saturn_ring.png",
   }) as unknown as Record<string, THREE.Texture>;
 
-  // Color space + wrap + anisotropy
+  // Color space, mipmaps y filtrado (mapas esféricos: clamp para evitar costuras)
   useEffect(() => {
-    const aniso = lite ? 4 : 8;
+    const cap = gl.capabilities.getMaxAnisotropy();
+    const aniso = Math.min(lite ? 4 : 12, cap);
     Object.entries(texMap).forEach(([key, tex]) => {
       tex.colorSpace = THREE.SRGBColorSpace;
-      tex.wrapS = THREE.RepeatWrapping;
       tex.anisotropy = aniso;
       tex.needsUpdate = true;
-      if (key === "saturnRing") {
+      if (key === "earthNormal") {
+        tex.colorSpace = THREE.NoColorSpace;
         tex.wrapS = THREE.ClampToEdgeWrapping;
         tex.wrapT = THREE.ClampToEdgeWrapping;
+        tex.generateMipmaps = true;
+        tex.minFilter = THREE.LinearMipmapLinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+      } else if (key === "saturnRing") {
+        tex.wrapS = THREE.ClampToEdgeWrapping;
+        tex.wrapT = THREE.ClampToEdgeWrapping;
+        tex.minFilter = THREE.LinearMipmapLinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+      } else {
+        tex.wrapS = THREE.ClampToEdgeWrapping;
+        tex.wrapT = THREE.ClampToEdgeWrapping;
+        tex.generateMipmaps = true;
+        tex.minFilter = THREE.LinearMipmapLinearFilter;
+        tex.magFilter = THREE.LinearFilter;
       }
     });
-  }, [texMap, lite]);
+  }, [texMap, lite, gl]);
 
   return texMap;
 }
@@ -169,6 +194,7 @@ function Planet({
   const hoverLerp = useRef(0);
   const magneticOffset = useRef(new THREE.Vector3());
   const tmpVec = useRef(new THREE.Vector3());
+  const targetScaleVec = useRef(new THREE.Vector3(1, 1, 1));
   const [hover, setHover] = useState(false);
   const { camera, size } = useThree();
 
@@ -191,6 +217,11 @@ function Planet({
 
   const spinSpeed = useMemo(() => 0.08 + Math.random() * 0.12, []);
   const pulsePhase = useMemo(() => Math.random() * Math.PI * 2, []);
+  const emissiveCol = useMemo(() => new THREE.Color(haloColor), [haloColor]);
+  const earthNormalScale = useMemo(() => new THREE.Vector2(0.55, 0.55), []);
+  const earthNormalTex = textures.earthNormal;
+  const useEarthDetail =
+    isEarth && earthNormalTex && !isLowTier();
 
   useFrame((state, delta) => {
     // ── Magnetic effect (V7: fuerza reducida a 0.4× para integrar con drag de cámara) ──
@@ -247,10 +278,8 @@ function Planet({
     const active = 1 - Math.min(dist / 12, 1);
     const targetScale = body.scale * (1 + active * 0.15 + hoverLerp.current * 0.12);
     if (meshRef.current) {
-      meshRef.current.scale.lerp(
-        new THREE.Vector3(targetScale, targetScale, targetScale),
-        0.1,
-      );
+      targetScaleVec.current.set(targetScale, targetScale, targetScale);
+      meshRef.current.scale.lerp(targetScaleVec.current, 0.1);
     }
     if (glowRef.current) {
       const t = state.clock.elapsedTime;
@@ -316,13 +345,25 @@ function Planet({
       >
         <sphereGeometry args={[1, segments, segments]} />
         {planetTex ? (
-          <meshStandardMaterial
-            map={planetTex}
-            roughness={0.92}
-            metalness={0.02}
-            emissive={new THREE.Color(haloColor)}
-            emissiveIntensity={0.04}
-          />
+          useEarthDetail ? (
+            <meshStandardMaterial
+              map={planetTex}
+              normalMap={earthNormalTex}
+              normalScale={earthNormalScale}
+              roughness={0.78}
+              metalness={0.04}
+              emissive={emissiveCol}
+              emissiveIntensity={0.025}
+            />
+          ) : (
+            <meshStandardMaterial
+              map={planetTex}
+              roughness={0.92}
+              metalness={0.02}
+              emissive={emissiveCol}
+              emissiveIntensity={0.04}
+            />
+          )
         ) : (
           <meshStandardMaterial color={haloColor} roughness={0.9} />
         )}
@@ -659,8 +700,7 @@ function Scene({
 }) {
   const { camera } = useThree();
   const mouse = useMouseParallaxRef();
-  const lastActRef = useRef<SceneState["act"]>("I");
-  const lastActiveIdRef = useRef<string>("");
+  const stateEmitRef = useRef({ act: "I" as SceneState["act"], id: "", flash: -999 });
   const cameraPosVec = useRef(new THREE.Vector3());
   const cameraYawRef = useRef(0);
   const lite = useMemo(() => isLowTier(), []);
@@ -742,11 +782,17 @@ function Scene({
       }
     }
 
-    if (act !== lastActRef.current || bestBody.id !== lastActiveIdRef.current) {
-      lastActRef.current = act;
-      lastActiveIdRef.current = bestBody.id;
+    const em = stateEmitRef.current;
+    if (
+      em.act !== act ||
+      em.id !== bestBody.id ||
+      Math.abs(em.flash - flash) > 0.04
+    ) {
+      em.act = act;
+      em.id = bestBody.id;
+      em.flash = flash;
+      onStateChange({ act, activeBody: bestBody, flash });
     }
-    onStateChange({ act, activeBody: bestBody, flash });
   });
 
   return (
@@ -940,10 +986,39 @@ const ServicesProjectsJourneyV7 = () => {
     };
   }, []);
 
-  if (!webgl) {
+  const lite = isLowTier();
+
+  if (!webgl || lite) {
+    // Fallback ultra liviano para mobile/low-tier: sin Canvas ni imágenes pesadas.
     return (
       <Suspense fallback={<div className="h-screen" />}>
-        <ServicesNebula />
+        <div ref={sectionRef} className="relative bg-black text-foreground py-24 px-6 md:px-12">
+          <div className="max-w-4xl mx-auto">
+            <p className="text-[10px] tracking-[0.4em] uppercase text-foreground/50 font-light">
+              Servicios · Proyectos
+            </p>
+            <h2 className="mt-5 text-4xl md:text-6xl font-extralight tracking-tight text-foreground">
+              Universo Limitless
+            </h2>
+            <p className="mt-6 text-sm md:text-base text-foreground/60 font-light leading-relaxed">
+              En celular usamos un modo liviano. El recorrido 3D completo está disponible en desktop.
+            </p>
+            <div className="mt-10 flex gap-4">
+              <a
+                href="/proyectos"
+                className="inline-flex items-center gap-3 border border-foreground/20 px-6 py-3 text-xs tracking-[0.35em] uppercase text-foreground/80 font-light hover:border-primary hover:text-foreground transition-colors"
+              >
+                Ver proyectos →
+              </a>
+              <a
+                href="/contacto"
+                className="inline-flex items-center gap-3 border border-foreground/20 px-6 py-3 text-xs tracking-[0.35em] uppercase text-foreground/80 font-light hover:border-primary hover:text-foreground transition-colors"
+              >
+                Contacto →
+              </a>
+            </div>
+          </div>
+        </div>
       </Suspense>
     );
   }
@@ -966,10 +1041,10 @@ const ServicesProjectsJourneyV7 = () => {
     progress < 0.40 ? 1 : progress < 0.46 ? 1 - (progress - 0.40) / 0.06 : 0;
 
   const eyebrowText = isAct2
-    ? "Pruebas · Atravesando el espacio"
+    ? "Proyectos"
     : isTransition
     ? ""
-    : "Capacidades · Sistema solar";
+    : "Servicios · Proyectos";
 
   const poolSize = isAct2 ? PROJECTS.length : SERVICES.length;
   const activeNumber = isAct2
@@ -988,7 +1063,7 @@ const ServicesProjectsJourneyV7 = () => {
   const pivotScale = pivotVisible ? Math.pow(1 - pivotD, 0.6) : 0;
   const pivotOpacity = pivotVisible ? Math.pow(1 - pivotD, 1.2) : 0;
 
-  const lite = isLowTier();
+  const lite2 = isLowTier();
   const fov =
     typeof window !== "undefined"
       ? window.innerWidth < 480
@@ -997,7 +1072,7 @@ const ServicesProjectsJourneyV7 = () => {
         ? 65
         : 55
       : 55;
-  const sectionHeight = lite ? "600vh" : "900vh";
+  const sectionHeight = lite2 ? "600vh" : "900vh";
 
   return (
     <section
@@ -1022,7 +1097,12 @@ const ServicesProjectsJourneyV7 = () => {
           <Suspense fallback={null}>
             <Canvas
               dpr={lite ? [1, 1] : [1, 1.5]}
-              gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+              gl={{
+                antialias: !lite,
+                alpha: true,
+                powerPreference: "high-performance",
+                stencil: false,
+              }}
               camera={{ fov, near: 0.1, far: 200, position: [0, 0, 0] }}
               style={{ background: "transparent" }}
             >

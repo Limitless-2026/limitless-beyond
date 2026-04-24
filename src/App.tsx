@@ -11,10 +11,8 @@ import V5 from "./pages/V5.tsx";
 import V6 from "./pages/V6.tsx";
 import V7 from "./pages/V7.tsx";
 import NotFound from "./pages/NotFound.tsx";
-import Proyectos from "./pages/Proyectos.tsx";
 import ProyectosV2 from "./pages/ProyectosV2.tsx";
 import ProyectosV3 from "./pages/ProyectosV3.tsx";
-import ProyectoDetalle from "./pages/ProyectoDetalle.tsx";
 import ProyectoDetalleV2 from "./pages/ProyectoDetalleV2.tsx";
 import Contacto from "./pages/Contacto.tsx";
 import SmoothScrollProvider from "./components/SmoothScrollProvider";
@@ -29,19 +27,20 @@ const App = () => (
       <BrowserRouter>
         <SmoothScrollProvider>
           <Routes>
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<V7 />} />
+            <Route path="/index" element={<Index />} />
             <Route path="/v2" element={<V2 />} />
             <Route path="/v3" element={<V3 />} />
             <Route path="/v4" element={<V4 />} />
             <Route path="/v5" element={<V5 />} />
             <Route path="/v6" element={<V6 />} />
             <Route path="/v7" element={<V7 />} />
-            <Route path="/proyectos" element={<Proyectos />} />
+            <Route path="/proyectos" element={<ProyectosV2 />} />
             <Route path="/proyectos/v2" element={<ProyectosV2 />} />
             <Route path="/proyectos/v3" element={<ProyectosV3 />} />
             <Route path="/proyectos/v2/:slug" element={<ProyectoDetalleV2 />} />
             <Route path="/proyectos/v3/:slug" element={<ProyectoDetalleV2 />} />
-            <Route path="/proyectos/:slug" element={<ProyectoDetalle />} />
+            <Route path="/proyectos/:slug" element={<ProyectoDetalleV2 />} />
             <Route path="/contacto" element={<Contacto />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
