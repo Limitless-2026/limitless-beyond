@@ -119,7 +119,7 @@ const ProyectosV3 = () => {
               transition: "opacity 700ms ease-out 500ms",
             }}
           >
-            2024 — 2025
+            2024 — 2026
           </span>
           <span
             className="col-span-6 md:col-span-3 text-right text-primary"
@@ -225,7 +225,7 @@ const ProyectosV3 = () => {
             .fill(null)
             .map((_, i) => (
               <span key={i} className="inline-flex items-center gap-8 mr-8">
-                <span>Index 2024 — 2025</span>
+                <span>Index 2024 — 2026</span>
                 <span className="text-primary">✦</span>
                 <span className="italic" style={{
                   background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--secondary)))",

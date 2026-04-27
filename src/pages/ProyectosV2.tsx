@@ -146,7 +146,7 @@ const ProyectosV2 = () => {
             }}
           />
           <span className="text-[10px] md:text-xs tracking-[0.4em] uppercase text-foreground/45 font-light whitespace-nowrap">
-            {String(count).padStart(2, "0")} Proyectos · 2024 — 2025
+            {String(count).padStart(2, "0")} Proyectos · 2024 — 2026
           </span>
         </div>
       </section>

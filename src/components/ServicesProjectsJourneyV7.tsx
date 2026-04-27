@@ -72,15 +72,15 @@ const PIVOT: Body = {
 };
 
 const PROJECTS: Body[] = [
-  { id: "p1", number: "01", title: "ACEROS CAS",        desc: "Sitio web", position: [ 4,  3, -48], scale: 1.1, color: "#7B2FFF", act: "II", image: PROJECT_IMG["01"] },
-  { id: "p2", number: "02", title: "BELTRÁN",           desc: "Próximamente", position: [-5,  1, -40], scale: 1.3, color: "#9A5BFF", act: "II", image: PROJECT_IMG["02"] },
-  { id: "p3", number: "03", title: "DOLTON",            desc: "Web publicada", position: [ 3, -3, -32], scale: 0.9, color: "#7B2FFF", act: "II", image: PROJECT_IMG["03"] },
-  { id: "p4", number: "04", title: "ASSITECH",          desc: "Web publicada", position: [-6,  2, -24], scale: 1.0, color: "#5A1FD8", act: "II", image: PROJECT_IMG["04"] },
-  { id: "p5", number: "05", title: "TAOL",              desc: "Web publicada", position: [ 2,  3, -15], scale: 1.2, color: "#9A5BFF", act: "II", image: PROJECT_IMG["05"] },
-  { id: "p6", number: "06", title: "EMPRENDIMIENTOS",   desc: "Próximamente", position: [-3, -2,  -6], scale: 1.0, color: "#7B2FFF", act: "II", image: PROJECT_IMG["06"] },
-  { id: "p7", number: "07", title: "OCC",               desc: "Web publicada", position: [ 5,  2, -56], scale: 1.15, color: "#9A5BFF", act: "II", image: PROJECT_IMG["07"] },
-  { id: "p8", number: "08", title: "A LA TREMENDA",     desc: "Web publicada", position: [-4, -2, -64], scale: 0.95, color: "#7B2FFF", act: "II", image: PROJECT_IMG["08"] },
-  { id: "p9", number: "09", title: "MORPH",             desc: "Web publicada", position: [ 3, -1, -72], scale: 1.05, color: "#5A1FD8", act: "II", image: PROJECT_IMG["09"] },
+  { id: "p1", number: "01", title: "ACEROS CAS",        desc: "Institucional + manual · 2026", position: [ 4,  3, -48], scale: 1.1, color: "#7B2FFF", act: "II", image: PROJECT_IMG["01"] },
+  { id: "p2", number: "02", title: "BELTRÁN BRIONES",   desc: "Sitio personal · 2026", position: [-5,  1, -40], scale: 1.3, color: "#9A5BFF", act: "II", image: PROJECT_IMG["02"] },
+  { id: "p3", number: "03", title: "DOLTON",            desc: "Web + rebranding · 2025", position: [ 3, -3, -32], scale: 0.9, color: "#7B2FFF", act: "II", image: PROJECT_IMG["03"] },
+  { id: "p4", number: "04", title: "ASSITECH",          desc: "Landing · Google Ads · 2025", position: [-6,  2, -24], scale: 1.0, color: "#5A1FD8", act: "II", image: PROJECT_IMG["04"] },
+  { id: "p5", number: "05", title: "TAOL",              desc: "Branding · 2024", position: [ 2,  3, -15], scale: 1.2, color: "#9A5BFF", act: "II", image: PROJECT_IMG["05"] },
+  { id: "p6", number: "06", title: "ESCUELA CREADORES", desc: "Optimización · 2026", position: [-3, -2,  -6], scale: 1.0, color: "#7B2FFF", act: "II", image: PROJECT_IMG["06"] },
+  { id: "p7", number: "07", title: "OCC",               desc: "Branding + web · 2024", position: [ 5,  2, -56], scale: 1.15, color: "#9A5BFF", act: "II", image: PROJECT_IMG["07"] },
+  { id: "p8", number: "08", title: "A LA TREMENDA",     desc: "Branding · 2023", position: [-4, -2, -64], scale: 0.95, color: "#7B2FFF", act: "II", image: PROJECT_IMG["08"] },
+  { id: "p9", number: "09", title: "MORPH",             desc: "Branding · 2025", position: [ 3, -1, -72], scale: 1.05, color: "#5A1FD8", act: "II", image: PROJECT_IMG["09"] },
 ];
 
 const ACT_I_BODIES: Body[] = [...SERVICES];
@@ -583,6 +583,23 @@ function ProjectsOverlay({ progress }: { progress: number }) {
 
   if (overlayFade <= 0.001) return null;
 
+  const activeIndex = Math.max(0, Math.min(PROJECTS.length - 1, Math.round(local)));
+  const activeProject = PROJECTS[activeIndex];
+  const tintByNumber: Record<string, string> = {
+    // Colores definidos por vos (con alpha suave)
+    "01": "rgba(192,26,33,0.22)",   // Aceroscas  #C01A21
+    "02": "rgba(135,164,182,0.20)", // Beltran    #87A4B6
+    "03": "rgba(0,0,255,0.16)",     // Dolton     #0000FF
+    // Otros (aprox, ajustables)
+    "04": "rgba(245,213,71,0.18)",  // Assitech   amarillo
+    "05": "rgba(249,115,22,0.20)",  // TAOL       naranja
+    "06": "rgba(37,99,235,0.16)",   // Emprendimientos azul (alternativa: amarillo)
+    "07": "rgba(34,197,94,0.16)",   // OCC        verde
+    "08": "rgba(214,198,176,0.18)", // A la Tremenda beige
+    "09": "rgba(167,140,120,0.18)", // Morph      marrón cálido (tarjeta)
+  };
+  const tint = tintByNumber[activeProject?.number] ?? "rgba(123,47,255,0.16)";
+
   return (
     <div
       className="absolute inset-0 pointer-events-none"
@@ -593,6 +610,16 @@ function ProjectsOverlay({ progress }: { progress: number }) {
         perspectiveOrigin: "50% 50%",
       }}
     >
+      {/* Background tint per active project */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: `radial-gradient(ellipse 70% 50% at 50% 55%, ${tint} 0%, rgba(0,0,0,0) 62%), radial-gradient(ellipse 60% 40% at 30% 40%, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0) 55%)`,
+          transition: "background 900ms cubic-bezier(0.16, 1, 0.3, 1)",
+          opacity: 0.95,
+          mixBlendMode: "screen",
+        }}
+      />
       <div className="relative w-full h-full" style={{ transformStyle: "preserve-3d" }}>
         {PROJECTS.map((project, i) => {
           const l = local - i;
