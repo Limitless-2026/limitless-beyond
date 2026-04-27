@@ -169,7 +169,7 @@ const V7 = () => {
           <div className="absolute inset-0 flex items-center justify-center">
             <p className="text-foreground/50 text-sm">WebGL no soportado en este navegador</p>
           </div>
-        ) : nebulaMount && !lite ? (
+        ) : nebulaMount ? (
           <Suspense fallback={null}>
             <HeroWebGLV2 />
           </Suspense>
@@ -317,97 +317,7 @@ const V7 = () => {
       <div className="relative z-0 h-[420vh]" />
       <div className="relative z-0 h-[80vh] bg-black" />
 
-      {!lite ? (
-        <ServicesProjectsJourneyV7 />
-      ) : (
-        <section className="relative z-10 bg-black py-20 px-6 md:px-12">
-          <div className="max-w-6xl mx-auto">
-            <p className="text-[10px] tracking-[0.4em] uppercase text-foreground/50 font-light">
-              Servicios · Proyectos
-            </p>
-            <h2 className="mt-4 text-4xl md:text-6xl font-extralight tracking-tight text-foreground">
-              Proyectos
-            </h2>
-            <p className="mt-6 text-sm md:text-base text-foreground/60 font-light leading-relaxed">
-              Versión liviana para celular. El recorrido 3D completo está en desktop.
-            </p>
-
-            <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {PROJECTS_ORDERED.map((p) => {
-                const disabled = p.estado === "EN CONSTRUCCIÓN";
-                const content = (
-                  <div className="group relative overflow-hidden rounded-xl border border-foreground/10 bg-foreground/[0.02]">
-                    <div className="relative aspect-[16/11] overflow-hidden">
-                      <img
-                        src={p.cover}
-                        alt={p.name}
-                        loading="lazy"
-                        decoding="async"
-                        className="absolute inset-0 w-full h-full object-cover opacity-85"
-                        draggable={false}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
-                      <div className="absolute top-4 left-4 flex items-center gap-2">
-                        <span className="text-[10px] tracking-[0.3em] uppercase text-foreground/70 font-light">
-                          {p.id}
-                        </span>
-                        <span
-                          className="text-[10px] tracking-[0.25em] uppercase font-light px-2 py-1 rounded-full border"
-                          style={{
-                            borderColor:
-                              p.estado === "LANZADO"
-                                ? "rgba(237,236,232,0.18)"
-                                : "rgba(200,0,122,0.35)",
-                            color:
-                              p.estado === "LANZADO"
-                                ? "rgba(237,236,232,0.55)"
-                                : "rgba(200,0,122,0.85)",
-                            background:
-                              p.estado === "LANZADO"
-                                ? "rgba(0,0,0,0.25)"
-                                : "rgba(200,0,122,0.08)",
-                          }}
-                        >
-                          {p.estado}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="p-5">
-                      <h3 className="text-2xl font-extralight tracking-tight text-foreground">
-                        {p.name}
-                      </h3>
-                      <p className="mt-2 text-xs text-foreground/55 font-light">
-                        {p.tipo} · {p.año}
-                      </p>
-                      <div className="mt-6 flex items-center justify-between">
-                        <span className="text-[10px] tracking-[0.3em] uppercase text-primary font-light">
-                          {disabled ? "Próximamente" : "Ver caso →"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-
-                return (
-                  <div key={p.id} className={disabled ? "opacity-70" : ""}>
-                    {disabled ? content : <a href={`/proyectos/${p.slug}`}>{content}</a>}
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-10 flex justify-center">
-              <a
-                href="/proyectos"
-                className="inline-flex items-center gap-3 border border-foreground/20 px-6 py-3 text-xs tracking-[0.35em] uppercase text-foreground/80 font-light hover:border-primary hover:text-foreground transition-colors"
-              >
-                Ver todos →
-              </a>
-            </div>
-          </div>
-        </section>
-      )}
+      <ServicesProjectsJourneyV7 />
 
       <div className="h-[20vh]" />
       <AboutConstellation />

@@ -1015,8 +1015,8 @@ const ServicesProjectsJourneyV7 = () => {
 
   const lite = isLowTier();
 
-  if (!webgl || lite) {
-    // Fallback ultra liviano para mobile/low-tier: sin Canvas ni imágenes pesadas.
+  if (!webgl) {
+    // Fallback ultra liviano para navegadores sin WebGL: sin Canvas ni imágenes pesadas.
     return (
       <Suspense fallback={<div className="h-screen" />}>
         <div ref={sectionRef} className="relative bg-black text-foreground py-24 px-6 md:px-12">
@@ -1094,9 +1094,9 @@ const ServicesProjectsJourneyV7 = () => {
   const fov =
     typeof window !== "undefined"
       ? window.innerWidth < 480
-        ? 75
+        ? 95
         : window.innerWidth < 768
-        ? 65
+        ? 75
         : 55
       : 55;
   const sectionHeight = lite2 ? "600vh" : "900vh";
@@ -1201,13 +1201,17 @@ const ServicesProjectsJourneyV7 = () => {
             </span>
           </div>
 
-          {/* Hint: arrastrar para rotar */}
+          {/* Hint: arrastrar para rotar e interactuar */}
           <div
-            className="absolute bottom-8 right-8 hidden md:flex items-center gap-2"
+            className="absolute bottom-8 right-8 flex flex-col items-end md:flex-row md:items-center gap-1 md:gap-2 pointer-events-auto"
             style={{ opacity: overlayOpacity * 0.7, transition: "opacity 200ms linear" }}
           >
-            <span className="text-[9px] tracking-[0.3em] uppercase text-foreground/40 font-light">
-              Arrastrá · Rotar vista
+            <span className="text-[9px] tracking-[0.3em] uppercase text-foreground/40 font-light text-right">
+              Deslizá para rotar
+            </span>
+            <span className="hidden md:inline text-[9px] text-foreground/20">·</span>
+            <span className="text-[9px] tracking-[0.3em] uppercase text-primary/70 font-light text-right animate-pulse">
+              Tocá para explorar
             </span>
           </div>
 
