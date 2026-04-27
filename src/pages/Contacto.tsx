@@ -2,6 +2,9 @@ import { useRef, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import HamburgerMenu from "@/components/HamburgerMenu";
+import emailjs from "@emailjs/browser";
+import SEO from "@/components/SEO";
+import PageTransition from "@/components/PageTransition";
 
 const PRICING: Record<string, number> = {
   "Diseño UX-UI": 200,
@@ -71,6 +74,7 @@ const Contacto = () => {
   const [budget, setBudget] = useState<string>("");
   const [fileName, setFileName] = useState<string>("");
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const toggleService = (s: string) => {
@@ -82,7 +86,7 @@ const Contacto = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const result = contactSchema.safeParse({ name, email, message, services, budget });
     if (!result.success) {
@@ -96,22 +100,49 @@ const Contacto = () => {
       return;
     }
     setErrors({});
+    setIsSubmitting(true);
+
     const data = result.data;
-    const body =
-      `Hola Limitless,\n\n` +
-      `Soy ${data.name} (${data.email}).\n\n` +
-      `Estoy interesado en: ${data.services.join(", ")}\n` +
-      `Presupuesto: ${data.budget}\n\n` +
-      `La idea:\n${data.message}\n` +
-      (fileName ? `\nAdjuntaré: ${fileName} desde mi cliente de correo.\n` : "");
-    const subject = `Nueva idea — ${data.name}`;
-    const href = `mailto:hola@limitless.studio?subject=${encodeURIComponent(
-      subject,
-    )}&body=${encodeURIComponent(body)}`;
-    window.location.href = href;
-    toast("Abriendo tu cliente de email…", {
-      description: "Si no se abre, escribinos a hola@limitless.studio",
-    });
+
+    try {
+      // Reemplaza los siguientes IDs con los de tu cuenta de EmailJS cuando la configures
+      const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID || "default_service";
+      const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || "default_template";
+      const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || "default_public_key";
+
+      await emailjs.send(
+        SERVICE_ID,
+        TEMPLATE_ID,
+        {
+          from_name: data.name,
+          reply_to: data.email,
+          services: data.services.join(", "),
+          budget: data.budget,
+          message: data.message,
+          attachment_note: fileName ? `Adjunto propuesto por el usuario: ${fileName}` : "Sin adjuntos",
+        },
+        PUBLIC_KEY
+      );
+
+      toast.success("¡Mensaje enviado con éxito!", {
+        description: "Nos pondremos en contacto contigo a la brevedad.",
+      });
+
+      // Clear form
+      setName("");
+      setEmail("");
+      setMessage("");
+      setServices([]);
+      setBudget("");
+      setFileName("");
+    } catch (error) {
+      console.error("Error sending email:", error);
+      toast.error("Hubo un problema enviando el mensaje.", {
+        description: "Por favor, inténtalo de nuevo o escríbenos directamente.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const FieldError = ({ msg }: { msg?: string }) =>
@@ -125,8 +156,13 @@ const Contacto = () => {
     ) : null;
 
   return (
-    <main className="relative min-h-screen bg-background text-foreground overflow-hidden">
-      <HamburgerMenu />
+    <PageTransition>
+      <SEO 
+        title="Contacto" 
+        description="Contanos tu idea. Diseñamos y desarrollamos soluciones digitales sin fronteras." 
+      />
+      <main className="relative min-h-screen bg-background text-foreground overflow-hidden">
+        <HamburgerMenu />
 
       {/* Nebula background */}
       <div
@@ -297,7 +333,10 @@ const Contacto = () => {
           {/* Submit */}
           <button
             type="submit"
-            className="group relative w-full py-6 border border-foreground/30 rounded-full overflow-hidden hover:border-primary transition-colors duration-500"
+            disabled={isSubmitting}
+            className={`group relative w-full py-6 border rounded-full overflow-hidden transition-colors duration-500 ${
+              isSubmitting ? "border-primary/50 opacity-70 cursor-not-allowed" : "border-foreground/30 hover:border-primary"
+            }`}
           >
             <span
               aria-hidden
@@ -310,8 +349,8 @@ const Contacto = () => {
             <span className="relative flex items-center justify-center gap-4 text-lg uppercase font-extralight text-foreground"
               style={{ fontFamily: "'Arkitech', 'Inter', sans-serif", letterSpacing: "0.4em" }}
             >
-              Enviar
-              <span className="inline-block transition-transform duration-300 group-hover:translate-x-2">→</span>
+              {isSubmitting ? "Enviando..." : "Enviar"}
+              {!isSubmitting && <span className="inline-block transition-transform duration-300 group-hover:translate-x-2">→</span>}
             </span>
           </button>
         </form>
@@ -332,6 +371,7 @@ const Contacto = () => {
         }
       `}</style>
     </main>
+    </PageTransition>
   );
 };
 

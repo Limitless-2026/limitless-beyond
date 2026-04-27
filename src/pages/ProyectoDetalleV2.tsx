@@ -4,6 +4,8 @@ import HamburgerMenu from "@/components/HamburgerMenu";
 import StarfieldParallax from "@/components/StarfieldParallax";
 import CaseGallery from "@/components/CaseGallery";
 import { getProjectBySlug, getNextProject } from "@/data/projects";
+import SEO from "@/components/SEO";
+import PageTransition from "@/components/PageTransition";
 
 const useReveal = <T extends HTMLElement = HTMLDivElement>(threshold = 0.18) => {
   const ref = useRef<T>(null);
@@ -228,8 +230,14 @@ const ProyectoDetalleV2 = () => {
       : "hsl(var(--foreground) / 0.7)";
 
   return (
-    <main className="relative min-h-screen bg-background text-foreground overflow-x-hidden">
-      <HamburgerMenu />
+    <PageTransition>
+      <SEO 
+        title={project.name} 
+        description={project.descripcion}
+        image={project.cover} 
+      />
+      <main className="relative min-h-screen bg-background text-foreground overflow-x-hidden">
+        <HamburgerMenu />
 
       {/* Reading progress bar */}
       <div
@@ -621,6 +629,7 @@ const ProyectoDetalleV2 = () => {
         </div>
       </footer>
     </main>
+    </PageTransition>
   );
 };
 

@@ -9,6 +9,8 @@ import Preloader from "@/components/Preloader";
 import { HERO_SCROLL_VH } from "@/constants/heroScroll";
 import { isLowTier } from "@/hooks/useDeviceTier";
 import { PROJECTS_ORDERED } from "@/data/projects";
+import SEO from "@/components/SEO";
+import PageTransition from "@/components/PageTransition";
 
 function isWebGLAvailable(): boolean {
   try {
@@ -156,8 +158,10 @@ const V7 = () => {
   }, []);
 
   return (
-    <div className="relative bg-background text-foreground">
-      {showPreloader && <Preloader onDone={() => setShowPreloader(false)} />}
+    <PageTransition>
+      <SEO />
+      <div className="relative bg-background text-foreground">
+        {showPreloader && <Preloader onDone={() => setShowPreloader(false)} />}
       <div
         ref={nebulaRef}
         className="fixed inset-0"
@@ -323,7 +327,8 @@ const V7 = () => {
       <AboutConstellation />
 
       <CosmicFooterV2 />
-    </div>
+      </div>
+    </PageTransition>
   );
 };
 

@@ -4,6 +4,8 @@ import HamburgerMenu from "@/components/HamburgerMenu";
 import StarfieldParallax from "@/components/StarfieldParallax";
 import ProjectStationV2 from "@/components/ProjectStationV2";
 import { PROJECTS_ORDERED as PROJECTS } from "@/data/projects";
+import SEO from "@/components/SEO";
+import PageTransition from "@/components/PageTransition";
 
 const ProyectosV2 = () => {
   const [heroIn, setHeroIn] = useState(false);
@@ -35,7 +37,12 @@ const ProyectosV2 = () => {
   const heroTitleWords2 = "Limitless".split(" ");
 
   return (
-    <main className="relative min-h-screen bg-background text-foreground overflow-x-hidden">
+    <PageTransition>
+      <SEO 
+        title="Proyectos" 
+        description="Casos en órbita. Cada proyecto que desarrollamos rompe un límite distinto." 
+      />
+      <main className="relative min-h-screen bg-background text-foreground overflow-x-hidden">
       <HamburgerMenu />
 
       {/* Background starfield */}
@@ -219,6 +226,7 @@ const ProyectosV2 = () => {
         </footer>
       </section>
     </main>
+    </PageTransition>
   );
 };
 
