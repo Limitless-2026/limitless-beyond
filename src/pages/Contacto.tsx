@@ -3,17 +3,43 @@ import { z } from "zod";
 import { toast } from "sonner";
 import HamburgerMenu from "@/components/HamburgerMenu";
 
-const SERVICES = [
-  "Diseño UX-UI",
-  "Sitio web",
-  "Branding",
-  "Aplicación",
-  "Software / SaaS",
-  "Chatbot",
-  "Publicidad",
-];
+const PRICING: Record<string, number> = {
+  "Diseño UX-UI": 200,
+  "Sitio web": 500,
+  "Branding": 400,
+  "Aplicación": 1000,
+  "Software / SaaS": 1000,
+  "Chatbot": 1000,
+  "Publicidad": 150,
+};
 
-const BUDGETS = ["USD 5–10K", "USD 10–25K", "USD 25–60K", "USD 60K+"];
+const SERVICES = Object.keys(PRICING);
+
+function generateBudgets(selectedServices: string[]): string[] {
+  let base = 0;
+  for (const s of selectedServices) {
+    if (PRICING[s]) base += PRICING[s];
+  }
+
+  if (base === 0) return ["USD 500 - 1K", "USD 1K - 3K", "USD 3K - 10K", "USD 10K+"];
+  
+  const format = (n: number) => {
+    if (n >= 1000) return (n / 1000).toFixed(n % 1000 === 0 ? 0 : 1).replace(".0", "") + "K";
+    return n.toString();
+  };
+
+  const b1 = base;
+  const b2 = Math.round((base * 1.8) / 100) * 100;
+  const b3 = Math.round((base * 3) / 100) * 100;
+  const b4 = Math.round((base * 6) / 100) * 100;
+
+  return [
+    `USD ${format(b1)} - ${format(b2)}`,
+    `USD ${format(b2)} - ${format(b3)}`,
+    `USD ${format(b3)} - ${format(b4)}`,
+    `USD ${format(b4)}+`
+  ];
+}
 
 const contactSchema = z.object({
   name: z
@@ -48,9 +74,12 @@ const Contacto = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const toggleService = (s: string) => {
-    setServices((prev) =>
-      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
-    );
+    setServices((prev) => {
+      const next = prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s];
+      const newBudgets = generateBudgets(next);
+      if (budget && !newBudgets.includes(budget)) setBudget("");
+      return next;
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -243,7 +272,7 @@ const Contacto = () => {
           <div>
             <SectionLabel>Presupuesto estimado</SectionLabel>
             <div className="mt-6 flex flex-wrap gap-3">
-              {BUDGETS.map((b) => {
+              {generateBudgets(services).map((b) => {
                 const active = budget === b;
                 return (
                   <button
