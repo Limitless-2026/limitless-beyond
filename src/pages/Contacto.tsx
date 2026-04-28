@@ -8,10 +8,11 @@ import PageTransition from "@/components/PageTransition";
 
 const PRICING: Record<string, number> = {
   "Diseño UX-UI": 200,
-  "Sitio web": 500,
+  "Web Corporativa": 500,
+  "Experiencia Web 3D": 1500,
   "Branding": 400,
-  "Aplicación": 1000,
-  "Software / SaaS": 1000,
+  "Aplicación": 3000,
+  "Software / SaaS": 3000,
   "Chatbot": 1000,
   "Publicidad": 150,
 };
